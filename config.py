@@ -53,7 +53,7 @@ DEFAULT_CONFIG = {
     },
     "overlay": {
         "distance_m": 0.58,             # 距离头显0.58米
-        "pitch_deg": -24.0,             # 下俯24度，刚好在视线正下方不挡前方视线
+        "pitch_deg": -24.0,             # 下俯24度，刚好处在视线正下方不挡前方视线
         "width_m": 0.42,                # VR中键盘实体宽度 (米，允许范围 0.25 ~ 0.85)
         "alpha": 0.95,                  # 半透明度
         "haptic_feedback": True,        # 按键手柄震动反馈
@@ -66,10 +66,12 @@ DEFAULT_CONFIG = {
     },
     "translation": {
         "enabled": True,
-        "network_mode": "global",       # "global"(海外直连模式), "mainland"(中国大陆模式)
-        "engine": "free_direct",        # "free_direct"(极速免费), "google_gemini"(谷歌Gemini), "deepseek"(DeepSeek)
-        "target_lang": "en",            # 目标语言: "en", "ja", "ko", "ru" 等
-        "send_mode": "translated_only", # "translated_only"(纯英文), "bilingual"(双语), "original_only"(纯中文)
+        "engine": "google_official",    # "free_direct", "google_official", "google_gemini", "deepseek"
+        "network_mode": "global",       # "global"(海外直连), "mainland"(中国用户/走代理)
+        "source_lang": "zh",            # 源语言: "zh", "en", "ja", "ko", "ru", "fr", "de"
+        "target_lang": "en",            # 目标语言: "en", "zh", "ja", "ko", "ru", "fr", "de"
+        "proxy": "http://127.0.0.1:7890", # 本地代理端口
+        "send_mode": "translated_only", # "translated_only"(纯译文), "bilingual"(双语), "original_only"(纯原文)
         "bilingual_format": "{original} ({translated})",
         "google_api_key": "",           # Google Gemini API Key
         "google_model": "gemini-1.5-flash",
@@ -82,65 +84,62 @@ DEFAULT_CONFIG = {
         "deepseek_api_key": "",         # 填入 DeepSeek API Key
         "deepseek_base_url": "https://api.deepseek.com",
         "deepseek_model": "deepseek-chat",
-        "prompt_style": "google_vrc",   # "google_vrc", "social", "aggressive", "custom"
-        "system_prompt": DEFAULT_SYSTEM_PROMPT,
-        "proxy": ""                     # 如: "http://127.0.0.1:7890" (大陆模式下访问Google时使用)
-    },
-    "ui": {
-        "sound_feedback": False,
-        "theme": "dark_glass"
+        "prompt_style": "google_vrc",
+        "system_prompt": GOOGLE_VRC_PROMPT
     }
 }
 
+
 class Config:
     def __init__(self):
-        self.data = self.load()
+        self._config = self._load()
 
-    def load(self):
+    def _load(self) -> dict:
         if not CONFIG_PATH.exists():
-            self.save(DEFAULT_CONFIG)
-            return dict(DEFAULT_CONFIG)
+            self._save(DEFAULT_CONFIG)
+            return DEFAULT_CONFIG.copy()
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
-            merged = dict(DEFAULT_CONFIG)
+            # 递归合并缺省项
+            cfg = DEFAULT_CONFIG.copy()
             for k, v in loaded.items():
-                if isinstance(v, dict) and k in merged and isinstance(merged[k], dict):
-                    merged[k].update(v)
+                if isinstance(v, dict) and k in cfg and isinstance(cfg[k], dict):
+                    cfg[k].update(v)
                 else:
-                    merged[k] = v
-            return merged
+                    cfg[k] = v
+            return cfg
         except Exception as e:
-            print(f"[Config] 加载配置文件失败，使用默认配置: {e}")
-            return dict(DEFAULT_CONFIG)
+            print(f"[Config] 加载配置文件失败，将使用默认配置: {e}")
+            return DEFAULT_CONFIG.copy()
 
-    def save(self, data=None):
-        if data is not None:
-            self.data = data
+    def _save(self, data: dict):
         try:
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(self.data, f, ensure_ascii=False, indent=2)
+                json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"[Config] 保存配置失败: {e}")
 
     def get(self, *keys, default=None):
-        if not keys:
-            return self.data
-        cur = self.data
+        val = self._config
         for k in keys:
-            if isinstance(k, dict):
-                return cur if cur is not None else k
-            if isinstance(cur, dict) and k in cur:
-                cur = cur[k]
+            if isinstance(val, dict) and k in val:
+                val = val[k]
             else:
                 return default
-        return cur
+        return val
 
-    def set(self, keys, value):
-        cur = self.data
+    def set(self, keys: list, value):
+        val = self._config
         for k in keys[:-1]:
-            cur = cur.setdefault(k, {})
-        cur[keys[-1]] = value
-        self.save()
+            if k not in val or not isinstance(val[k], dict):
+                val[k] = {}
+            val = val[k]
+        val[keys[-1]] = value
+        self._save(self._config)
+
+    def to_dict(self) -> dict:
+        return self._config.copy()
+
 
 config = Config()

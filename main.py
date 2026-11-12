@@ -98,17 +98,18 @@ class VRCTransKeyApp:
             "input_mode": config.get("input", "default_mode", default="zh"),
             "is_shift": False,
             "is_caps": False,
+            "source_lang": config.get("translation", "source_lang", default="zh"),
             "target_lang": config.get("translation", "target_lang", default="en"),
             "send_mode": config.get("translation", "send_mode", default="translated_only"),
-            "engine": config.get("translation", "engine", default="free_direct"),
+            "engine": config.get("translation", "engine", default="google_official"),
             "network_mode": config.get("translation", "network_mode", default="global"),
             "google_api_key": config.get("translation", "google_api_key", default=""),
             "google_model": config.get("translation", "google_model", default="gemini-1.5-flash"),
             "google_models_list": config.get("translation", "google_models_list", default=["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]),
             "deepseek_api_key": config.get("translation", "deepseek_api_key", default=""),
-            "prompt_style": config.get("translation", "prompt_style", default="social"),
+            "prompt_style": config.get("translation", "prompt_style", default="google_vrc"),
             "system_prompt": config.get("translation", "system_prompt", default=DEFAULT_SYSTEM_PROMPT),
-            "proxy": config.get("translation", "proxy", default=""),
+            "proxy": config.get("translation", "proxy", default="http://127.0.0.1:7890"),
             "overlay_width_m": config.get("overlay", "width_m", default=0.42),
             "laser_guide": config.get("overlay", "laser_guide", default="auto"),
             "is_vd_active": False,
@@ -244,21 +245,22 @@ class VRCTransKeyApp:
             self.trigger_translation()
 
     def trigger_translation(self):
-        """触发异步实时翻译"""
+        """触发异步实时双向翻译"""
         text = self.state["committed_text"].strip()
         if not text:
             self.state["translated_text"] = ""
             self.dirty = True
             return
 
-        target_lang = self.state["target_lang"]
+        source_lang = self.state.get("source_lang", "zh")
+        target_lang = self.state.get("target_lang", "en")
 
         def on_translated(original, translated):
             if original == self.state["committed_text"].strip():
                 self.state["translated_text"] = translated
                 self.dirty = True
 
-        self.translator.translate_async(text, target_lang, on_translated)
+        self.translator.translate_async(text, target_lang, on_translated, source_lang=source_lang)
 
     def handle_action(self, action: str, data: any = None, controller_idx: int = None):
         """处理界面交互动作"""
@@ -274,19 +276,59 @@ class VRCTransKeyApp:
             self.osc.set_typing_status(False)
             return
 
-        elif action == "cycle_lang":
-            langs = ["en", "ja", "ko", "ru", "fr", "de"]
-            idx = (langs.index(self.state["target_lang"]) + 1) % len(langs) if self.state["target_lang"] in langs else 0
-            self.state["target_lang"] = langs[idx]
-            config.set(["translation", "target_lang"], langs[idx])
+        elif action in ("cycle_lang_pair", "cycle_lang"):
+            pairs = [
+                ("zh", "en"), ("en", "zh"),
+                ("zh", "ja"), ("en", "ja"), ("ja", "zh"),
+                ("zh", "ko"), ("en", "ru")
+            ]
+            cur_pair = (self.state.get("source_lang", "zh"), self.state.get("target_lang", "en"))
+            idx = (pairs.index(cur_pair) + 1) % len(pairs) if cur_pair in pairs else 0
+            new_src, new_tgt = pairs[idx]
+            self.state["source_lang"] = new_src
+            self.state["target_lang"] = new_tgt
+            config.set(["translation", "source_lang"], new_src)
+            config.set(["translation", "target_lang"], new_tgt)
+            if new_src != "zh":
+                self.state["input_mode"] = "en"
+            else:
+                self.state["input_mode"] = "zh"
+            self.trigger_translation()
+
+        elif action == "swap_lang":
+            old_src = self.state.get("source_lang", "zh")
+            old_tgt = self.state.get("target_lang", "en")
+            new_src, new_tgt = old_tgt, old_src
+            self.state["source_lang"] = new_src
+            self.state["target_lang"] = new_tgt
+            config.set(["translation", "source_lang"], new_src)
+            config.set(["translation", "target_lang"], new_tgt)
+            if new_src != "zh":
+                self.state["input_mode"] = "en"
+            else:
+                self.state["input_mode"] = "zh"
+            lang_names = {"zh": "中文", "en": "英语", "ja": "日语", "ko": "韩语", "ru": "俄语"}
+            self.state["settings_tip"] = f"(成功) 语言已互换: {lang_names.get(new_src, new_src)} → {lang_names.get(new_tgt, new_tgt)}"
+            self.trigger_translation()
+
+        elif action == "set_source_lang":
+            lang = str(data)
+            self.state["source_lang"] = lang
+            config.set(["translation", "source_lang"], lang)
+            if lang != "zh":
+                self.state["input_mode"] = "en"
+            else:
+                self.state["input_mode"] = "zh"
+            lang_names = {"zh": "中文", "en": "英语", "ja": "日语", "ko": "韩语"}
+            self.state["settings_tip"] = f"(成功) 输入语言已设为: {lang_names.get(lang, lang)}"
             self.trigger_translation()
 
         elif action == "set_target_lang":
             lang = str(data)
             self.state["target_lang"] = lang
             config.set(["translation", "target_lang"], lang)
-            lang_names = {"en": "英语 (EN)", "ja": "日语 (JA)", "ko": "韩语 (KO)", "ru": "俄语 (RU)", "fr": "法语 (FR)", "de": "德语 (DE)"}
-            self.state["settings_tip"] = f"√ 目标翻译语种已设为: {lang_names.get(lang, lang)}"
+            lang_names = {"en": "英语", "zh": "中文", "ja": "日语", "ko": "韩语", "ru": "俄语"}
+            self.state["settings_tip"] = f"(成功) 目标语言已设为: {lang_names.get(lang, lang)}"
             self.trigger_translation()
 
         elif action == "set_default_input_mode":
@@ -294,7 +336,7 @@ class VRCTransKeyApp:
             self.state["input_mode"] = mode
             config.set(["input", "default_mode"], mode)
             mode_name = "默认中文拼音" if mode == "zh" else "默认英文直接输入"
-            self.state["settings_tip"] = f"√ 初始输入语言已设为: 【{mode_name}】"
+            self.state["settings_tip"] = f"(成功) 初始输入语言已设为: 【{mode_name}】"
 
         elif action == "switch_keyboard":
             self.state["sub_keyboard"] = str(data)
@@ -386,19 +428,37 @@ class VRCTransKeyApp:
             self.state["network_mode"] = nxt_net
             config.set(["translation", "network_mode"], nxt_net)
             self.translator.update_config(config.get("translation"))
-            tip = "√ 已切换为【🌍 海外直连模式】(Google免翻秒通)" if nxt_net == "global" else "√ 已切换为【🇨🇳 中国大陆模式】(国内加速/按需代理)"
+            tip = "(成功) 已切换为【海外直连模式】(Google免翻秒通)" if nxt_net == "global" else "(成功) 已切换为【中国用户模式】(走本地代理 7890)"
             self.state["settings_tip"] = tip
             self.trigger_translation()
+
+        elif action == "set_network_mode":
+            mode = str(data)
+            self.state["network_mode"] = mode
+            config.set(["translation", "network_mode"], mode)
+            self.translator.update_config(config.get("translation"))
+            tip = "(成功) 已切换为【海外直连模式】" if mode == "global" else "(成功) 已切换为【中国用户模式】(走本地代理 7890)"
+            self.state["settings_tip"] = tip
+            self.trigger_translation()
+
+        elif action == "toggle_proxy_preset":
+            cur_p = self.state.get("proxy", "http://127.0.0.1:7890")
+            nxt_p = "http://127.0.0.1:10809" if "7890" in cur_p else "http://127.0.0.1:7890"
+            self.state["proxy"] = nxt_p
+            config.set(["translation", "proxy"], nxt_p)
+            self.translator.update_config(config.get("translation"))
+            self.state["settings_tip"] = f"(成功) 代理端口已切换为: {nxt_p}"
 
         elif action == "set_engine":
             eng = str(data)
             self.state["engine"] = eng
             eng_names = {
-                "free_direct": "免翻极速直连通道",
-                "google_gemini": "Google Gemini 官方大模型",
+                "free_direct": "免费通道 (零门槛免配置)",
+                "google_official": "Google 官方翻译 (全球直连/代理)",
+                "google_gemini": "Google Gemini 纯语言大模型",
                 "deepseek": "DeepSeek 大模型"
             }
-            self.state["settings_tip"] = f"√ 已切换为 {eng_names.get(eng, eng)}"
+            self.state["settings_tip"] = f"(成功) 已切换为: {eng_names.get(eng, eng)}"
             config.set(["translation", "engine"], eng)
             self.translator.update_config(config.get("translation"))
             self.trigger_translation()
@@ -407,34 +467,30 @@ class VRCTransKeyApp:
             clip = get_clipboard_text().strip()
             if clip:
                 self.state["google_api_key"] = clip
-                self.state["settings_tip"] = "√ Google API Key 已粘贴保存！可点击【拉取可用模型】或【测试连接】"
+                self.state["settings_tip"] = "(成功) Google API Key 已粘贴保存！"
                 config.set(["translation", "google_api_key"], clip)
                 self.translator.update_config(config.get("translation"))
-                print(f"[Settings] Google API Key 已更新: {clip[:6]}...{clip[-4:] if len(clip) > 10 else ''}")
             else:
-                self.state["settings_tip"] = "提示：剪贴板为空，请先复制 Google Gemini API Key"
+                self.state["settings_tip"] = "(提示) 剪贴板为空，请先复制 Google Gemini API Key"
 
         elif action == "clear_google_key":
             self.state["google_api_key"] = ""
-            self.state["settings_tip"] = "已清空 Google API Key"
+            self.state["settings_tip"] = "(成功) 已清空 Google API Key"
             config.set(["translation", "google_api_key"], "")
             self.translator.update_config(config.get("translation"))
 
-        elif action == "cycle_google_model":
-            models = self.state.get("google_models_list", ["gemini-1.5-flash", "gemini-2.0-flash"])
+        elif action in ("cycle_gemini_model", "cycle_google_model"):
+            models = self.state.get("google_models_list", ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"])
             cur_m = self.state.get("google_model", "gemini-1.5-flash")
-            if cur_m in models:
-                idx = (models.index(cur_m) + 1) % len(models)
-            else:
-                idx = 0
+            idx = (models.index(cur_m) + 1) % len(models) if cur_m in models else 0
             nxt_m = models[idx]
             self.state["google_model"] = nxt_m
             config.set(["translation", "google_model"], nxt_m)
             self.translator.update_config(config.get("translation"))
-            self.state["settings_tip"] = f"√ 当前 Google 模型已切换为: {nxt_m}"
+            self.state["settings_tip"] = f"(成功) 纯语言模型已切换为: {nxt_m}"
 
-        elif action == "fetch_google_models":
-            self.state["settings_tip"] = "正在向 Google 云端接口请求可用模型列表..."
+        elif action in ("fetch_gemini_models", "fetch_google_models"):
+            self.state["settings_tip"] = "正在向 Google 请求纯语言文本模型列表..."
             self.dirty = True
 
             def _fetch_run():
@@ -451,25 +507,47 @@ class VRCTransKeyApp:
             threading.Thread(target=_fetch_run, daemon=True).start()
 
         elif action == "test_translation_api":
-            self.state["settings_tip"] = "正在测试翻译通道连接与延迟..."
+            self.state["settings_tip"] = "正在测试当前翻译通道连接与延迟..."
             self.dirty = True
 
             def _run_test():
-                ok, msg = self.translator.test_connection(self.state["target_lang"])
+                ok, msg = self.translator.test_connection(
+                    target_lang=self.state.get("target_lang", "en"),
+                    source_lang=self.state.get("source_lang", "zh")
+                )
                 self.state["settings_tip"] = msg
                 self.dirty = True
 
             threading.Thread(target=_run_test, daemon=True).start()
 
-        elif action == "adjust_vr_width":
+        elif action in ("adjust_scale", "adjust_vr_width"):
             delta = float(data)
             cur_w = float(self.state.get("overlay_width_m", 0.42))
             nxt = round(max(0.25, min(0.85, cur_w + delta)), 2)
             self._apply_vr_width(nxt)
 
+        elif action == "reset_scale":
+            self._apply_vr_width(0.42)
+
         elif action == "set_vr_width_exact":
             nxt = round(max(0.25, min(0.85, float(data))), 2)
             self._apply_vr_width(nxt)
+
+        elif action in ("cycle_laser_guide", "cycle_laser_mode"):
+            cur_mode = self.state.get("laser_guide", "auto")
+            mode_cycle = {"auto": "on", "on": "off", "off": "auto"}
+            nxt_mode = mode_cycle.get(cur_mode, "auto")
+            self.state["laser_guide"] = nxt_mode
+            config.set(["overlay", "laser_guide"], nxt_mode)
+            if self.overlay_mgr:
+                self.overlay_mgr.set_laser_mode(nxt_mode)
+            self.state["settings_tip"] = f"(成功) 激光引导线模式已切换为: {nxt_mode}"
+
+        elif action in ("clear_user_history", "reset_user_dict"):
+            self.pinyin.user_history = {}
+            self.pinyin.word_total_count = {}
+            self.pinyin.save_user_dict()
+            self.state["settings_tip"] = "(成功) 已重置个人输入法自适应词频记忆"
 
         elif action == "vr_size_slider":
             # data 为 (slider_x1, slider_x2, click_x) 或 (slider_x1, slider_x2)
@@ -485,7 +563,7 @@ class VRCTransKeyApp:
             self.state["hotkey_controller"] = nxt_h
             config.set(["hotkey", "controller"], nxt_h)
             names = {"right": "右手摇杆双击", "left": "左手摇杆双击"}
-            self.state["settings_tip"] = f"√ VR 呼出键已切换为：{names[nxt_h]}"
+            self.state["settings_tip"] = f"(成功) VR 呼出键已切换为：{names[nxt_h]}"
 
         elif action == "cycle_laser_mode":
             cur_mode = self.state.get("laser_guide", "auto")
@@ -500,19 +578,19 @@ class VRCTransKeyApp:
                 "on": "强制开启 (始终显示 3D 发光引导线)",
                 "off": "强制关闭 (完全隐藏第三方引导线，由SteamVR原生接管)"
             }
-            self.state["settings_tip"] = f"√ 激光引导线已切换为：{mode_names[nxt_mode]}"
+            self.state["settings_tip"] = f"(成功) 激光引导线已切换为：{mode_names[nxt_mode]}"
 
         elif action == "reset_user_dict":
             self.pinyin.user_history = {}
             self.pinyin.word_total_count = {}
             self.pinyin.save_user_dict()
-            self.state["settings_tip"] = "√ 已重置个人输入法自适应词频记忆"
+            self.state["settings_tip"] = "(成功) 已重置个人输入法自适应词频记忆"
 
         elif action == "paste_api_key":
             clip = get_clipboard_text().strip()
             if clip:
                 self.state["deepseek_api_key"] = clip
-                self.state["settings_tip"] = "√ API Key 已成功粘贴并保存！可点击右上角【测试翻译连接】验证"
+                self.state["settings_tip"] = "(成功) API Key 已成功粘贴并保存！可点击右上角【测试翻译连接】验证"
                 config.set(["translation", "deepseek_api_key"], clip)
                 self.translator.update_config(config.get("translation"))
                 print(f"[Settings] DeepSeek API Key 已更新: {clip[:6]}...{clip[-4:] if len(clip) > 10 else ''}")
@@ -532,7 +610,7 @@ class VRCTransKeyApp:
                 self.state["prompt_style"] = style
                 self.state["system_prompt"] = new_prompt
                 style_name = "日常友好社交 (礼貌自然)" if style == "social" else "暴躁对线 / 俚语强化 (喷人无审查)"
-                self.state["settings_tip"] = f"√ 已切换为【{style_name}】模式，实时生效！"
+                self.state["settings_tip"] = f"(成功) 已切换为【{style_name}】模式，实时生效！"
                 config.set(["translation", "prompt_style"], style)
                 config.set(["translation", "system_prompt"], new_prompt)
                 self.translator.update_config(config.get("translation"))
@@ -543,7 +621,7 @@ class VRCTransKeyApp:
             if clip:
                 self.state["prompt_style"] = "custom"
                 self.state["system_prompt"] = clip
-                self.state["settings_tip"] = "√ 自定义提示词已更新并保存！"
+                self.state["settings_tip"] = "(成功) 自定义提示词已更新并保存！"
                 config.set(["translation", "prompt_style"], "custom")
                 config.set(["translation", "system_prompt"], clip)
                 self.translator.update_config(config.get("translation"))
@@ -554,7 +632,7 @@ class VRCTransKeyApp:
         elif action == "reset_default_prompt":
             self.state["prompt_style"] = "social"
             self.state["system_prompt"] = SOCIAL_SYSTEM_PROMPT
-            self.state["settings_tip"] = "√ 已恢复默认【日常友好社交】提示词"
+            self.state["settings_tip"] = "(成功) 已恢复默认【日常友好社交】提示词"
             config.set(["translation", "prompt_style"], "social")
             config.set(["translation", "system_prompt"], SOCIAL_SYSTEM_PROMPT)
             self.translator.update_config(config.get("translation"))
@@ -674,7 +752,11 @@ class VRCTransKeyApp:
 
         if send_type == "translated":
             if not trans:
-                trans = self.translator.translate_sync(orig, self.state["target_lang"])
+                trans = self.translator.translate_sync(
+                    orig,
+                    self.state["target_lang"],
+                    source_lang=self.state.get("source_lang", "zh")
+                )
             send_text = trans if trans else orig
         else:
             send_text = orig
@@ -696,7 +778,7 @@ class VRCTransKeyApp:
         if self.overlay_mgr:
             self.overlay_mgr.set_width_meters(nxt)
         pct = int(round((nxt / 0.42) * 100))
-        self.state["settings_tip"] = f"√ VR 键盘大小已调节为 {nxt:.2f}米 ({pct}%，已开启最小0.25m防消失保护)"
+        self.state["settings_tip"] = f"(成功) VR 键盘大小已调节为 {nxt:.2f}米 ({pct}%，已开启最小0.25m防消失保护)"
         self.dirty = True
 
     def process_mouse_click(self, x: float, y: float, controller_idx: int = None, is_drag_hold: bool = False):

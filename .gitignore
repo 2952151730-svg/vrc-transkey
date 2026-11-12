@@ -17,3 +17,7 @@ test_out.log
 # Operating System Files
 .DS_Store
 Thumbs.db
+
+VRC-TransKey_original_backup.exe
+build_tmp/
+
