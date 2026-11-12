@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="favicon.svg" width="88" height="88" alt="VRC-TransKey Logo" />
+<img src="logo.png" width="96" height="96" alt="VRC-TransKey Logo" />
 
 # VRC-TransKey
 
