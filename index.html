@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TransKey VR — Real-Time Spatial AI Translation & In-VR Keyboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070913;
+      --bg-card: rgba(15, 20, 36, 0.75);
+      --card-border: rgba(0, 245, 212, 0.15);
+      --cyan: #00f5d4;
+      --neon-purple: #7b2cbf;
+      --electric-blue: #3a86ff;
+      --neon-pink: #f72585;
+      --text-white: #f8f9fa;
+      --text-dim: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-dark);
+      color: var(--text-white);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+      position: relative;
+    }
+    canvas#cyber-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .content-wrapper {
+      position: relative;
+      z-index: 1;
+    }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 8%;
+      background: rgba(7, 9, 19, 0.6);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.5px;
+    }
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--cyan), var(--electric-blue));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 245, 212, 0.4);
+      color: #000;
+      font-weight: 900;
+      font-size: 18px;
+    }
+    .nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      margin-left: 32px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover {
+      color: var(--cyan);
+      text-shadow: 0 0 12px rgba(0, 245, 212, 0.6);
+    }
+    .hero {
+      padding: 90px 8% 60px;
+      text-align: center;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 245, 212, 0.08);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      padding: 6px 18px;
+      border-radius: 999px;
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      margin-bottom: 24px;
+      box-shadow: 0 0 20px rgba(0, 245, 212, 0.15);
+      animation: pulse 3s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.02); opacity: 0.85; }
+    }
+    h1 {
+      font-size: clamp(40px, 6.5vw, 76px);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+      background: linear-gradient(180deg, #ffffff 30%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1 span {
+      background: linear-gradient(135deg, var(--cyan) 0%, #38bdf8 50%, var(--neon-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--text-dim);
+      max-width: 720px;
+      margin: 0 auto 40px;
+      font-weight: 400;
+    }
+    .cta-group {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 70px;
+    }
+    .btn-glow {
+      background: linear-gradient(135deg, var(--cyan), var(--electric-blue));
+      color: #030712;
+      font-weight: 800;
+      font-size: 15px;
+      padding: 16px 36px;
+      border-radius: 14px;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      box-shadow: 0 10px 30px rgba(0, 245, 212, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-glow:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(0, 245, 212, 0.55);
+    }
+    .btn-glass {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-white);
+      font-weight: 700;
+      font-size: 15px;
+      padding: 16px 32px;
+      border-radius: 14px;
+      text-decoration: none;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s;
+    }
+    .btn-glass:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--cyan);
+    }
+
+    /* Live Interactive Demo Box */
+    .interactive-demo {
+      max-width: 860px;
+      margin: 0 auto 80px;
+      background: var(--bg-card);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 36px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 0 30px rgba(0, 245, 212, 0.05);
+      backdrop-filter: blur(20px);
+      text-align: left;
+    }
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 16px;
+    }
+    .demo-dots {
+      display: flex;
+      gap: 8px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ef4444; }
+    .dot-y { background: #eab308; }
+    .dot-g { background: #22c55e; }
+    .demo-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--cyan);
+      background: rgba(0, 245, 212, 0.1);
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+    .chatbox-visual {
+      background: #02040a;
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+    }
+    .user-typing-row {
+      color: #94a3b8;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .translated-bubble {
+      background: linear-gradient(135deg, rgba(0, 245, 212, 0.15), rgba(58, 134, 255, 0.15));
+      border: 1px solid rgba(0, 245, 212, 0.4);
+      padding: 16px 20px;
+      border-radius: 14px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .avatar-tag {
+      font-size: 12px;
+      color: var(--cyan);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .latency-tag {
+      font-size: 12px;
+      color: #22c55e;
+      background: rgba(34, 197, 94, 0.1);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* Feature Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 28px;
+      max-width: 1200px;
+      margin: 0 auto 100px;
+      padding: 0 8%;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 36px 30px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(12px);
+    }
+    .feature-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--cyan);
+      box-shadow: 0 20px 40px rgba(0, 245, 212, 0.12);
+    }
+    .feature-icon-box {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(0, 245, 212, 0.15), rgba(123, 44, 191, 0.15));
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin-bottom: 24px;
+    }
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .feature-card p {
+      color: var(--text-dim);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* Architecture / Enterprise Section */
+    .arch-section {
+      background: rgba(10, 14, 28, 0.8);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 80px 8%;
+      text-align: center;
+    }
+    .arch-badge {
+      color: var(--electric-blue);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .arch-grid {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-top: 40px;
+    }
+    .arch-step {
+      background: #060913;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px 24px;
+      border-radius: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+    .arch-arrow { color: var(--cyan); font-size: 20px; font-weight: bold; }
+
+    footer {
+      padding: 60px 8% 40px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 14px;
+      background: var(--bg-dark);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    footer a { color: var(--text-dim); text-decoration: none; margin: 0 12px; }
+    footer a:hover { color: var(--cyan); }
+    .footer-brand {
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+    .contact-card {
+      margin: 24px auto 0;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: inline-block;
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--cyan);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cyber-canvas"></canvas>
+
+  <div class="content-wrapper">
+    <nav>
+      <div class="logo-container">
+        <div class="logo-icon">T</div>
+        <span>TransKey<span style="color:var(--cyan)">VR</span></span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#architecture">Architecture</a>
+        <a href="mailto:postmaster@transkeyvr.top">Contact</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="pill-badge">✨ SPATIAL REAL-TIME TRANSLATION ENGINE</div>
+      <h1>Speak Your Language.<br>Be Heard in <span>Every World</span>.</h1>
+      <p class="hero-subtitle">
+        TransKey VR breaks spatial boundaries in VRChat and virtual metaverse environments. Type naturally in your native tongue and broadcast instant, nuanced multilingual speech straight to your avatar's ChatBox.
+      </p>
+      <div class="cta-group">
+        <a href="mailto:postmaster@transkeyvr.top" class="btn-glow">
+          <span>🚀 Get TransKey Client</span>
+        </a>
+        <a href="#architecture" class="btn-glass">
+          <span>Explore Pipeline</span>
+        </a>
+      </div>
+
+      <!-- Live Typing Simulation -->
+      <div class="interactive-demo">
+        <div class="demo-header">
+          <div class="demo-dots">
+            <div class="dot dot-r"></div>
+            <div class="dot dot-y"></div>
+            <div class="dot dot-g"></div>
+          </div>
+          <div class="demo-status">● OSC STREAM: ACTIVE (PORT 9000)</div>
+        </div>
+        <div class="chatbox-visual">
+          <div class="user-typing-row">
+            <span>&gt; In-VR Virtual Input:</span>
+            <span id="typing-input" style="color: #fff; font-weight: 600;"></span>
+          </div>
+          <div class="translated-bubble">
+            <div>
+              <div class="avatar-tag">VRChat Chatbox Output</div>
+              <div id="typing-output" style="font-size: 16px; font-weight: 600; margin-top: 4px;">...</div>
+            </div>
+            <div class="latency-tag">⚡ 48ms Latency</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features-grid" id="features">
+      <div class="feature-card">
+        <div class="feature-icon-box">⚡</div>
+        <h3>Ultra-Low Latency Pipeline</h3>
+        <p>Built specifically for fast-paced social VR. Direct cloud translation hooks push instant translated messages straight to avatar OSC buffers in under 100 milliseconds.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">🌐</div>
+        <h3>Neural Multilingual AI</h3>
+        <p>Integrates cutting-edge Cloud Translation and Vertex AI models to preserve conversational idioms, slang, and emotion across English, Japanese, Chinese, and 40+ languages.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">⌨️</div>
+        <h3>Lightweight Virtual Overlay</h3>
+        <p>Zero-overhead background service tailored for SteamVR and desktop mode. Minimal CPU/GPU footprint to ensure maximum frame rates in crowded worlds.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">🔒</div>
+        <h3>100% VRChat Compliant</h3>
+        <p>Uses official VRChat Open Sound Control (OSC) chatbox APIs. Safe, transparent, and fully compliant with platform guidelines—no game file injection required.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">🎙️</div>
+        <h3>Avatar Speech Bubble Sync</h3>
+        <p>Synchronizes avatar facial visemes and head tags seamlessly with outgoing translated text for natural, immersive social engagement.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-box">☁️</div>
+        <h3>Global Cloud Architecture</h3>
+        <p>Powered by global distributed cloud infrastructure to provide rock-solid uptime and instantaneous translation nodes across North America, Europe, and Asia.</p>
+      </div>
+    </section>
+
+    <section class="arch-section" id="architecture">
+      <div class="arch-badge">High Performance Infrastructure</div>
+      <h2 style="font-size: 32px; font-weight: 800; margin: 12px 0 16px;">VRC-TransKey Technical Flow</h2>
+      <p style="color: var(--text-dim); max-width: 600px; margin: 0 auto;">Sub-second execution from hardware keystroke to immersive avatar broadcast.</p>
+
+      <div class="arch-grid">
+        <div class="arch-step">1. VR Input Hook<br><small style="color:var(--cyan)">VRC-TransKey.exe</small></div>
+        <div class="arch-arrow">&rarr;</div>
+        <div class="arch-step">2. Cloud Translation API<br><small style="color:#a855f7">Google Cloud Neural Engine</small></div>
+        <div class="arch-arrow">&rarr;</div>
+        <div class="arch-step">3. OSC UDP Stream<br><small style="color:#38bdf8">127.0.0.1:9000</small></div>
+        <div class="arch-arrow">&rarr;</div>
+        <div class="arch-step">4. VRChat Avatar<br><small style="color:#22c55e">Instant ChatBox</small></div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="footer-brand">TransKey VR</div>
+      <p>&copy; 2026 TransKey VR Technologies. All rights reserved.</p>
+      <div style="margin: 16px 0;">
+        <a href="#">Privacy Policy</a> ·
+        <a href="#">Terms of Service</a> ·
+        <a href="#">Security</a> ·
+        <a href="mailto:postmaster@transkeyvr.top">Support</a>
+      </div>
+      <div class="contact-card">
+        Official Inquiry: postmaster@transkeyvr.top
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // Dynamic Cyber Particle Background Canvas
+    const canvas = document.getElementById('cyber-canvas');
+    const ctx = canvas.getContext('2d');
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
+
+    const particles = Array.from({ length: 45 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: (Math.random() - 0.5) * 0.6,
+      radius: Math.random() * 2 + 1
+    }));
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(0, 245, 212, 0.4)';
+      ctx.strokeStyle = 'rgba(0, 245, 212, 0.08)';
+
+      particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > width) p.vx *= -1;
+        if (p.y < 0 || p.y > height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+          if (dist < 140) {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Live Typing Simulation
+    const phrases = [
+      { input: "你好，很高兴在 VRChat 认识大家！", output: "[TransKey] Hello everyone, so glad to meet you in VRChat! ✨" },
+      { input: "今夜のワールド、すごく綺麗ですね！", output: "[TransKey] Tonight's world is absolutely stunning! 🌙" },
+      { input: "我可以用虚拟键盘无缝打字交流。", output: "[TransKey] I can chat seamlessly with this virtual keyboard. ⚡" }
+    ];
+
+    let phraseIdx = 0;
+    let charIdx = 0;
+    let isDeleting = false;
+    const inputEl = document.getElementById('typing-input');
+    const outputEl = document.getElementById('typing-output');
+
+    function typeLoop() {
+      const current = phrases[phraseIdx];
+      if (!isDeleting) {
+        inputEl.innerText = current.input.slice(0, charIdx++);
+        if (charIdx > current.input.length) {
+          outputEl.innerText = current.output;
+          isDeleting = true;
+          setTimeout(typeLoop, 2200);
+          return;
+        }
+      } else {
+        inputEl.innerText = current.input.slice(0, charIdx--);
+        if (charIdx < 0) {
+          isDeleting = false;
+          phraseIdx = (phraseIdx + 1) % phrases.length;
+          charIdx = 0;
+          outputEl.innerText = "...";
+        }
+      }
+      setTimeout(typeLoop, isDeleting ? 30 : 80);
+    }
+    typeLoop();
+  </script>
+</body>
+</html>
