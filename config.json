@@ -20,10 +20,19 @@
   },
   "translation": {
     "enabled": true,
+    "network_mode": "global",
     "engine": "free_direct",
     "target_lang": "en",
     "send_mode": "bilingual",
     "bilingual_format": "{original} ({translated})",
+    "google_api_key": "",
+    "google_model": "gemini-1.5-flash",
+    "google_models_list": [
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-1.0-pro"
+    ],
     "deepseek_api_key": "your_deepseek_api_key_here",
     "deepseek_base_url": "https://api.deepseek.com",
     "deepseek_model": "deepseek-chat",

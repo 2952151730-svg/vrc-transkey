@@ -220,7 +220,12 @@ class UIRenderer:
             self._draw_left_text(draw, 158, cy, fitted_trans, self.font_trans, COLOR_TEXT_TRANS)
         else:
             engine = state.get("engine", "free_direct")
-            eng_tag = "DeepSeek AI" if engine == "deepseek" else "极速免翻直连"
+            if engine == "google_gemini":
+                eng_tag = "Google Gemini AI"
+            elif engine == "deepseek":
+                eng_tag = "DeepSeek AI"
+            else:
+                eng_tag = "极速免翻直连"
             self._draw_left_text(draw, 158, cy, f"实时译文预览 ({eng_tag} · 输入中文自动翻译)", self.font_key_sm, COLOR_TEXT_MUTED)
 
         # 3. [ 发送译文 ] 主按钮
@@ -771,6 +776,20 @@ class UIRenderer:
         )
         self._add_button(test_btn, "test_translation_api")
 
+        # 网络模式切换按钮 (海外直连 vs 大陆加速)
+        net_mode = state.get("network_mode", "global")
+        is_global = (net_mode == "global")
+        net_btn = (590, 80, 804, 116)
+        self._draw_keycap(
+            draw, net_btn, "● 🌍 海外直连模式" if is_global else "● 🇨🇳 大陆加速模式",
+            font=self.font_key_sm,
+            fill=COLOR_PRIMARY_SOFT if is_global else (40, 36, 28, 255),
+            border=COLOR_BORDER_ACTIVE if is_global else (120, 95, 45, 255),
+            text_color=COLOR_TEXT_ACCENT if is_global else (255, 210, 120, 255),
+            radius=8, shadow=False
+        )
+        self._add_button(net_btn, "toggle_network_mode")
+
         back_rect = (820, 80, 964, 116)
         self._draw_keycap(
             draw, back_rect, "保存返回", font=self.font_key_sm,
@@ -783,13 +802,14 @@ class UIRenderer:
 
         cur_engine = state.get("engine", "free_direct")
         is_free = (cur_engine == "free_direct")
+        is_gemini = (cur_engine == "google_gemini")
         is_ds = (cur_engine == "deepseek")
 
         self._draw_left_text(draw, 36, 154, "翻译引擎:", self.font_key_md, COLOR_TEXT_SUB)
 
-        btn_free = (140, 134, 410, 174)
+        btn_free = (120, 134, 380, 174)
         self._draw_keycap(
-            draw, btn_free, "● 免翻极速直连 (免费推荐)" if is_free else "免翻极速直连 (免费推荐)",
+            draw, btn_free, "● 免翻极速直连" if is_free else "免翻极速直连",
             font=self.font_key_sm,
             fill=COLOR_SUCCESS if is_free else COLOR_KEY_FUNC,
             border=COLOR_SUCCESS_BORDER if is_free else COLOR_KEY_FUNC_BORDER,
@@ -798,9 +818,20 @@ class UIRenderer:
         )
         self._add_button(btn_free, "set_engine", "free_direct")
 
-        btn_ds = (424, 134, 684, 174)
+        btn_gemini = (394, 134, 664, 174)
         self._draw_keycap(
-            draw, btn_ds, "● DeepSeek 大模型 (口语/俚语)" if is_ds else "DeepSeek 大模型 (口语/俚语)",
+            draw, btn_gemini, "● Google Gemini AI" if is_gemini else "Google Gemini AI",
+            font=self.font_key_sm,
+            fill=COLOR_PRIMARY if is_gemini else COLOR_KEY_FUNC,
+            border=COLOR_PRIMARY_BORDER if is_gemini else COLOR_KEY_FUNC_BORDER,
+            text_color=(255, 255, 255, 255) if is_gemini else COLOR_TEXT_SUB,
+            radius=9, shadow=False
+        )
+        self._add_button(btn_gemini, "set_engine", "google_gemini")
+
+        btn_ds = (678, 134, 948, 174)
+        self._draw_keycap(
+            draw, btn_ds, "● DeepSeek 大模型" if is_ds else "DeepSeek 大模型",
             font=self.font_key_sm,
             fill=COLOR_PRIMARY if is_ds else COLOR_KEY_FUNC,
             border=COLOR_PRIMARY_BORDER if is_ds else COLOR_KEY_FUNC_BORDER,
@@ -820,10 +851,15 @@ class UIRenderer:
         draw.rounded_rectangle(card_rect, radius=12, fill=COLOR_SURFACE_INNER, outline=COLOR_BORDER)
 
         if is_free:
-            self._draw_left_text(draw, 56, 238, "已启用【国内极速免翻双引擎通道 (有道极速 + MyMemory 国际互备)】", self.font_main, COLOR_TEXT_TRANS)
-            self._draw_left_text(draw, 56, 276, "• 零门槛开箱即用：无需注册账号、无需填写任何 API Key、无需开启代理加速器。", self.font_key_md, COLOR_TEXT_MAIN)
-            self._draw_left_text(draw, 56, 310, "• 毫秒级响应速度：国内节点直连延迟仅 20~50ms，边打字边出译文，丝滑不卡顿。", self.font_key_md, COLOR_TEXT_MAIN)
-            self._draw_left_text(draw, 56, 344, "• 激光瞄准与握持移动：手柄指到键盘自动出激光线，按住【握持键 Grip】指任意位置即可拖动键盘。", self.font_key_md, COLOR_TEXT_ACCENT)
+            if is_global:
+                self._draw_left_text(draw, 56, 238, "已启用【Google 官方极速直连通道】", self.font_main, COLOR_TEXT_TRANS)
+                self._draw_left_text(draw, 56, 276, "• 专为海外用户打造：Google 全球官方接口直连，免Key零配置，毫秒级响应。", self.font_key_md, COLOR_TEXT_MAIN)
+            else:
+                self._draw_left_text(draw, 56, 238, "已启用【中国大陆极速免翻双引擎通道 (有道极速 + MyMemory 国际互备)】", self.font_main, COLOR_TEXT_TRANS)
+                self._draw_left_text(draw, 56, 276, "• 专为大陆网络优化：无需注册、无需 API Key、无需开启代理加速器，开箱即用。", self.font_key_md, COLOR_TEXT_MAIN)
+
+            self._draw_left_text(draw, 56, 310, "• 毫秒级响应速度：打字选词完毕毫秒级出译文，直接通过 OSC 广播至 VRChat。", self.font_key_md, COLOR_TEXT_MAIN)
+            self._draw_left_text(draw, 56, 344, "• 激光瞄准与握持移动：手柄指到键盘自动出激光线，按住【握持键 Grip】即可在 VR 中随意拖拽放置。", self.font_key_md, COLOR_TEXT_ACCENT)
 
             draw.line([(56, 378), (WIDTH - 56, 378)], fill=COLOR_DIVIDER, width=1)
 
@@ -860,6 +896,66 @@ class UIRenderer:
                 fill=l_fill, border=l_border, text_color=l_tc, radius=8, shadow=False
             )
             self._add_button(laser_mode_rect, "cycle_laser_mode")
+
+        elif is_gemini:
+            self._draw_left_text(draw, 56, 224, "1. Google Gemini API Key (复制后点击下方框体或粘贴按钮，直接导入 Key):", self.font_key_sm, COLOR_TEXT_SUB)
+            g_key = state.get("google_api_key", "").strip()
+            if g_key:
+                masked = f"{g_key[:6]}••••••••{g_key[-4:]}" if len(g_key) > 10 else g_key
+                key_display = f"已配置 Google Key: {masked}  (点击此框可重新粘贴替换)"
+            else:
+                key_display = "未填入 Key — 请在 Google AI Studio 复制 Key 后直接点击此处粘贴"
+
+            key_box_rect = (56, 240, 650, 278)
+            draw.rounded_rectangle(key_box_rect, radius=8, fill=COLOR_BG, outline=COLOR_BORDER_ACTIVE if g_key else COLOR_BORDER)
+            self._draw_left_text(draw, 72, 259, key_display, self.font_key_sm, COLOR_TEXT_TRANS if g_key else COLOR_TEXT_MUTED)
+            self._add_button(key_box_rect, "paste_google_key")
+
+            paste_key_btn = (664, 240, 814, 278)
+            self._draw_keycap(draw, paste_key_btn, "粘贴 Google Key", font=self.font_key_sm, fill=COLOR_PRIMARY, border=COLOR_PRIMARY_BORDER, text_color=(255, 255, 255, 255), radius=8, shadow=False)
+            self._add_button(paste_key_btn, "paste_google_key")
+
+            clear_key_btn = (826, 240, 936, 278)
+            self._draw_keycap(draw, clear_key_btn, "清空Key", font=self.font_key_sm, fill=COLOR_KEY_FUNC, border=COLOR_KEY_FUNC_BORDER, text_color=COLOR_TEXT_MUTED, radius=8, shadow=False)
+            self._add_button(clear_key_btn, "clear_google_key")
+
+            # 2. 模型切换与拉取
+            cur_model = state.get("google_model", "gemini-1.5-flash")
+            self._draw_left_text(draw, 56, 304, f"2. 当前模型: 【{cur_model}】", self.font_key_sm, COLOR_TEXT_MAIN)
+
+            cycle_model_btn = (330, 286, 550, 322)
+            self._draw_keycap(draw, cycle_model_btn, "⇄ 切换下一个模型", font=self.font_key_sm, fill=COLOR_PRIMARY_SOFT, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT, radius=8, shadow=False)
+            self._add_button(cycle_model_btn, "cycle_google_model")
+
+            fetch_model_btn = (564, 286, 820, 322)
+            self._draw_keycap(draw, fetch_model_btn, "☁ 一键拉取可用模型列表", font=self.font_key_sm, fill=COLOR_SUCCESS, border=COLOR_SUCCESS_BORDER, text_color=(255, 255, 255, 255), radius=8, shadow=False)
+            self._add_button(fetch_model_btn, "fetch_google_models")
+
+            # 3. 提示词风格
+            prompt_style = state.get("prompt_style", "google_vrc")
+            is_gv = (prompt_style == "google_vrc")
+            is_social = (prompt_style == "social")
+            is_aggr = (prompt_style == "aggressive")
+
+            self._draw_left_text(draw, 56, 350, "3. 翻译语气风格:", self.font_key_sm, COLOR_TEXT_SUB)
+
+            gv_btn = (200, 334, 440, 370)
+            self._draw_keycap(draw, gv_btn, "● VRC 游戏特调" if is_gv else "VRC 游戏特调", font=self.font_key_sm, fill=COLOR_PRIMARY if is_gv else COLOR_KEY_FUNC, border=COLOR_PRIMARY_BORDER if is_gv else COLOR_KEY_FUNC_BORDER, text_color=(255, 255, 255, 255) if is_gv else COLOR_TEXT_SUB, radius=8, shadow=False)
+            self._add_button(gv_btn, "set_prompt_style", "google_vrc")
+
+            social_btn = (454, 334, 680, 370)
+            self._draw_keycap(draw, social_btn, "● 日常友好社交" if is_social else "日常友好社交", font=self.font_key_sm, fill=COLOR_SUCCESS if is_social else COLOR_KEY_FUNC, border=COLOR_SUCCESS_BORDER if is_social else COLOR_KEY_FUNC_BORDER, text_color=(255, 255, 255, 255) if is_social else COLOR_TEXT_SUB, radius=8, shadow=False)
+            self._add_button(social_btn, "set_prompt_style", "social")
+
+            aggr_btn = (694, 334, 936, 370)
+            self._draw_keycap(draw, aggr_btn, "● 暴躁对线 / 俚语" if is_aggr else "暴躁对线 / 俚语", font=self.font_key_sm, fill=COLOR_DANGER if is_aggr else COLOR_KEY_FUNC, border=(255, 110, 120, 255) if is_aggr else COLOR_KEY_FUNC_BORDER, text_color=(255, 255, 255, 255) if is_aggr else COLOR_TEXT_SUB, radius=8, shadow=False)
+            self._add_button(aggr_btn, "set_prompt_style", "aggressive")
+
+            # 4. 横幅说明
+            example_rect = (56, 386, WIDTH - 56, 446)
+            draw.rounded_rectangle(example_rect, radius=8, fill=(20, 28, 42, 255), outline=COLOR_DIVIDER)
+            self._draw_left_text(draw, 70, 404, "Google Gemini 官方大模型多模态语境 · 专为 3D 虚拟空间人际社交优化", self.font_tiny, COLOR_TEXT_ACCENT)
+            self._draw_left_text(draw, 70, 426, "「这里有个人在跳舞」 ➔ \"Someone is breakdancing over here!\"  |  支持国内代理与海外直连", self.font_key_sm, COLOR_TEXT_TRANS)
 
         elif is_ds:
             self._draw_left_text(draw, 56, 224, "1. DeepSeek API Key (官网复制后，直接点击下方框体或按 Ctrl+V 即可粘贴):", self.font_key_sm, COLOR_TEXT_SUB)

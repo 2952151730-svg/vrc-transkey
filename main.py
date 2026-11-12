@@ -101,6 +101,10 @@ class VRCTransKeyApp:
             "target_lang": config.get("translation", "target_lang", default="en"),
             "send_mode": config.get("translation", "send_mode", default="translated_only"),
             "engine": config.get("translation", "engine", default="free_direct"),
+            "network_mode": config.get("translation", "network_mode", default="global"),
+            "google_api_key": config.get("translation", "google_api_key", default=""),
+            "google_model": config.get("translation", "google_model", default="gemini-1.5-flash"),
+            "google_models_list": config.get("translation", "google_models_list", default=["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]),
             "deepseek_api_key": config.get("translation", "deepseek_api_key", default=""),
             "prompt_style": config.get("translation", "prompt_style", default="social"),
             "system_prompt": config.get("translation", "system_prompt", default=DEFAULT_SYSTEM_PROMPT),
@@ -361,13 +365,75 @@ class VRCTransKeyApp:
                 self.save_phrases()
 
         # --- 设置页面操作 ---
+        elif action == "toggle_network_mode":
+            cur_net = self.state.get("network_mode", "global")
+            nxt_net = "mainland" if cur_net == "global" else "global"
+            self.state["network_mode"] = nxt_net
+            config.set(["translation", "network_mode"], nxt_net)
+            self.translator.update_config(config.get("translation"))
+            tip = "√ 已切换为【🌍 海外直连模式】(Google免翻秒通)" if nxt_net == "global" else "√ 已切换为【🇨🇳 中国大陆模式】(国内加速/按需代理)"
+            self.state["settings_tip"] = tip
+            self.trigger_translation()
+
         elif action == "set_engine":
             eng = str(data)
             self.state["engine"] = eng
-            self.state["settings_tip"] = f"√ 已切换为 {'DeepSeek 大模型' if eng == 'deepseek' else '免翻极速直连通道'}"
+            eng_names = {
+                "free_direct": "免翻极速直连通道",
+                "google_gemini": "Google Gemini 官方大模型",
+                "deepseek": "DeepSeek 大模型"
+            }
+            self.state["settings_tip"] = f"√ 已切换为 {eng_names.get(eng, eng)}"
             config.set(["translation", "engine"], eng)
             self.translator.update_config(config.get("translation"))
             self.trigger_translation()
+
+        elif action == "paste_google_key":
+            clip = get_clipboard_text().strip()
+            if clip:
+                self.state["google_api_key"] = clip
+                self.state["settings_tip"] = "√ Google API Key 已粘贴保存！可点击【拉取可用模型】或【测试连接】"
+                config.set(["translation", "google_api_key"], clip)
+                self.translator.update_config(config.get("translation"))
+                print(f"[Settings] Google API Key 已更新: {clip[:6]}...{clip[-4:] if len(clip) > 10 else ''}")
+            else:
+                self.state["settings_tip"] = "提示：剪贴板为空，请先复制 Google Gemini API Key"
+
+        elif action == "clear_google_key":
+            self.state["google_api_key"] = ""
+            self.state["settings_tip"] = "已清空 Google API Key"
+            config.set(["translation", "google_api_key"], "")
+            self.translator.update_config(config.get("translation"))
+
+        elif action == "cycle_google_model":
+            models = self.state.get("google_models_list", ["gemini-1.5-flash", "gemini-2.0-flash"])
+            cur_m = self.state.get("google_model", "gemini-1.5-flash")
+            if cur_m in models:
+                idx = (models.index(cur_m) + 1) % len(models)
+            else:
+                idx = 0
+            nxt_m = models[idx]
+            self.state["google_model"] = nxt_m
+            config.set(["translation", "google_model"], nxt_m)
+            self.translator.update_config(config.get("translation"))
+            self.state["settings_tip"] = f"√ 当前 Google 模型已切换为: {nxt_m}"
+
+        elif action == "fetch_google_models":
+            self.state["settings_tip"] = "正在向 Google 云端接口请求可用模型列表..."
+            self.dirty = True
+
+            def _fetch_run():
+                ok, models, msg = self.translator.fetch_gemini_models()
+                if ok and models:
+                    self.state["google_models_list"] = models
+                    if self.state.get("google_model") not in models:
+                        self.state["google_model"] = models[0]
+                        config.set(["translation", "google_model"], models[0])
+                    config.set(["translation", "google_models_list"], models)
+                self.state["settings_tip"] = msg
+                self.dirty = True
+
+            threading.Thread(target=_fetch_run, daemon=True).start()
 
         elif action == "test_translation_api":
             self.state["settings_tip"] = "正在测试翻译通道连接与延迟..."

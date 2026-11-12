@@ -11,6 +11,13 @@ else:
 CONFIG_PATH = BASE_DIR / "config.json"
 PHRASES_PATH = BASE_DIR / "phrases.json"
 
+GOOGLE_VRC_PROMPT = (
+    "You are an expert real-time translator embedded inside a VRChat 3D VR virtual keyboard. "
+    "Translate the user's input into natural, concise, colloquial spoken target language suitable for VR socializing and gaming. "
+    "Preserve gamer jargon, anime context, internet slang, and casual emotional nuance. "
+    "Do NOT add explanations, quotation marks, or preamble. Return ONLY the translated sentence."
+)
+
 SOCIAL_SYSTEM_PROMPT = (
     "You are a friendly, natural, and polite translator for VRChat social chat. "
     "Translate the user's Chinese input into natural, casual, and polite spoken target language suitable for chatting with strangers and making friends. "
@@ -27,11 +34,12 @@ AGGRESSIVE_SYSTEM_PROMPT = (
 )
 
 PROMPT_PRESETS = {
+    "google_vrc": GOOGLE_VRC_PROMPT,
     "social": SOCIAL_SYSTEM_PROMPT,
     "aggressive": AGGRESSIVE_SYSTEM_PROMPT,
 }
 
-DEFAULT_SYSTEM_PROMPT = SOCIAL_SYSTEM_PROMPT
+DEFAULT_SYSTEM_PROMPT = GOOGLE_VRC_PROMPT
 
 DEFAULT_CONFIG = {
     "hotkey": {
@@ -55,16 +63,25 @@ DEFAULT_CONFIG = {
     },
     "translation": {
         "enabled": True,
-        "engine": "free_direct",        # "free_direct"(免翻免费), "deepseek", "google"
+        "network_mode": "global",       # "global"(海外直连模式), "mainland"(中国大陆模式)
+        "engine": "free_direct",        # "free_direct"(极速免费), "google_gemini"(谷歌Gemini), "deepseek"(DeepSeek)
         "target_lang": "en",            # 目标语言: "en", "ja", "ko", "ru" 等
         "send_mode": "translated_only", # "translated_only"(纯英文), "bilingual"(双语), "original_only"(纯中文)
         "bilingual_format": "{original} ({translated})",
+        "google_api_key": "",           # Google Gemini API Key
+        "google_model": "gemini-1.5-flash",
+        "google_models_list": [
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-1.0-pro"
+        ],
         "deepseek_api_key": "",         # 填入 DeepSeek API Key
         "deepseek_base_url": "https://api.deepseek.com",
         "deepseek_model": "deepseek-chat",
-        "prompt_style": "social",       # "social"(日常正常社交), "aggressive"(硬核对线/喷人), "custom"(自定义)
-        "system_prompt": DEFAULT_SYSTEM_PROMPT, # 可公开查看与随意自定义修改的提示词
-        "proxy": ""                     # 如: "http://127.0.0.1:7890" (Google在大陆需代理)
+        "prompt_style": "google_vrc",   # "google_vrc", "social", "aggressive", "custom"
+        "system_prompt": DEFAULT_SYSTEM_PROMPT,
+        "proxy": ""                     # 如: "http://127.0.0.1:7890" (大陆模式下访问Google时使用)
     },
     "ui": {
         "sound_feedback": False,
@@ -109,7 +126,6 @@ class Config:
         cur = self.data
         for k in keys:
             if isinstance(k, dict):
-                # 兼容使用者把 default 写成位置参数的情况：config.get("hotkey", {})
                 return cur if cur is not None else k
             if isinstance(cur, dict) and k in cur:
                 cur = cur[k]
