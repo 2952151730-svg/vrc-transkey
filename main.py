@@ -95,7 +95,7 @@ class VRCTransKeyApp:
             "has_prev_page": False,
             "has_next_page": False,
             "translated_text": "",
-            "input_mode": "zh",            # "zh" (拼音) 或 "en" (英文)
+            "input_mode": config.get("input", "default_mode", default="zh"),
             "is_shift": False,
             "is_caps": False,
             "target_lang": config.get("translation", "target_lang", default="en"),
@@ -280,6 +280,21 @@ class VRCTransKeyApp:
             self.state["target_lang"] = langs[idx]
             config.set(["translation", "target_lang"], langs[idx])
             self.trigger_translation()
+
+        elif action == "set_target_lang":
+            lang = str(data)
+            self.state["target_lang"] = lang
+            config.set(["translation", "target_lang"], lang)
+            lang_names = {"en": "英语 (EN)", "ja": "日语 (JA)", "ko": "韩语 (KO)", "ru": "俄语 (RU)", "fr": "法语 (FR)", "de": "德语 (DE)"}
+            self.state["settings_tip"] = f"√ 目标翻译语种已设为: {lang_names.get(lang, lang)}"
+            self.trigger_translation()
+
+        elif action == "set_default_input_mode":
+            mode = str(data)
+            self.state["input_mode"] = mode
+            config.set(["input", "default_mode"], mode)
+            mode_name = "默认中文拼音" if mode == "zh" else "默认英文直接输入"
+            self.state["settings_tip"] = f"√ 初始输入语言已设为: 【{mode_name}】"
 
         elif action == "switch_keyboard":
             self.state["sub_keyboard"] = str(data)

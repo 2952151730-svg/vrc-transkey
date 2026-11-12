@@ -864,38 +864,43 @@ class UIRenderer:
             draw.line([(56, 378), (WIDTH - 56, 378)], fill=COLOR_DIVIDER, width=1)
 
             # 清空个人自学习词频
-            rst_dict_rect = (56, 396, 286, 438)
+            rst_dict_rect = (56, 396, 236, 438)
             self._draw_keycap(
-                draw, rst_dict_rect, "重置个人输入法记忆", font=self.font_key_sm,
+                draw, rst_dict_rect, "重置输入记忆", font=self.font_key_sm,
                 fill=COLOR_KEY_FUNC, border=COLOR_KEY_FUNC_BORDER, text_color=COLOR_TEXT_SUB, radius=8, shadow=False
             )
             self._add_button(rst_dict_rect, "reset_user_dict")
 
-            # 激光引导线模式设置 (防 SteamVR 原生双线)
-            laser_mode = state.get("laser_guide", "auto")
-            is_vd = state.get("is_vd_active", False)
-            if laser_mode == "auto":
-                laser_lbl = "引导线: 智能(VD生效)" if is_vd else "引导线: 智能(SteamVR隐藏)"
-                l_fill = COLOR_PRIMARY_SOFT if is_vd else COLOR_KEY_FUNC
-                l_border = COLOR_BORDER_ACTIVE if is_vd else COLOR_KEY_FUNC_BORDER
-                l_tc = COLOR_TEXT_ACCENT if is_vd else COLOR_TEXT_SUB
-            elif laser_mode == "on":
-                laser_lbl = "● 引导线: 强制开启"
-                l_fill = COLOR_PRIMARY
-                l_border = COLOR_PRIMARY_BORDER
-                l_tc = (255, 255, 255, 255)
-            else:
-                laser_lbl = "○ 引导线: 强制关闭"
-                l_fill = COLOR_KEY_FUNC
-                l_border = COLOR_KEY_FUNC_BORDER
-                l_tc = COLOR_TEXT_MUTED
-
-            laser_mode_rect = (306, 396, 626, 438)
+            # 初始输入模式 (默认拼音 vs 默认英文)
+            def_mode = state.get("input_mode", "zh")
+            is_zh = (def_mode == "zh")
+            mode_btn = (248, 396, 480, 438)
             self._draw_keycap(
-                draw, laser_mode_rect, laser_lbl, font=self.font_key_sm,
-                fill=l_fill, border=l_border, text_color=l_tc, radius=8, shadow=False
+                draw, mode_btn, "初始: ● 中文拼音" if is_zh else "初始: ○ 英文直出",
+                font=self.font_key_sm,
+                fill=COLOR_PRIMARY_SOFT if is_zh else COLOR_KEY_FUNC,
+                border=COLOR_BORDER_ACTIVE if is_zh else COLOR_KEY_FUNC_BORDER,
+                text_color=COLOR_TEXT_ACCENT if is_zh else COLOR_TEXT_SUB,
+                radius=8, shadow=False
             )
-            self._add_button(laser_mode_rect, "cycle_laser_mode")
+            self._add_button(mode_btn, "set_default_input_mode", "en" if is_zh else "zh")
+
+            # 目标语言切换快捷栏 (EN, JA, KO, RU)
+            cur_tl = state.get("target_lang", "en")
+            tl_langs = [("en", "EN 英语"), ("ja", "JA 日语"), ("ko", "KO 韩语"), ("ru", "RU 俄语")]
+            for idx, (code, lbl) in enumerate(tl_langs):
+                bx = 492 + idx * 114
+                brect = (bx, 396, bx + 104, 438)
+                is_active = (cur_tl == code)
+                self._draw_keycap(
+                    draw, brect, f"● {lbl}" if is_active else lbl,
+                    font=self.font_tiny,
+                    fill=COLOR_PRIMARY if is_active else COLOR_KEY_FUNC,
+                    border=COLOR_PRIMARY_BORDER if is_active else COLOR_KEY_FUNC_BORDER,
+                    text_color=(255, 255, 255, 255) if is_active else COLOR_TEXT_SUB,
+                    radius=8, shadow=False
+                )
+                self._add_button(brect, "set_target_lang", code)
 
         elif is_gemini:
             self._draw_left_text(draw, 56, 224, "1. Google Gemini API Key (复制后点击下方框体或粘贴按钮，直接导入 Key):", self.font_key_sm, COLOR_TEXT_SUB)

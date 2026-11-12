@@ -48,6 +48,9 @@ DEFAULT_CONFIG = {
         "double_click": True,           # 是否双击触发
         "double_click_interval_ms": 420 # 双击判定时间间隔(毫秒)
     },
+    "input": {
+        "default_mode": "zh"            # "zh"(默认中文拼音) 或 "en"(默认英文直接输入)
+    },
     "overlay": {
         "distance_m": 0.58,             # 距离头显0.58米
         "pitch_deg": -24.0,             # 下俯24度，刚好在视线正下方不挡前方视线
