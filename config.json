@@ -20,11 +20,17 @@
   },
   "translation": {
     "enabled": true,
-    "network_mode": "global",
     "engine": "free_direct",
-    "target_lang": "en",
+    "target_lang": "ja",
     "send_mode": "bilingual",
     "bilingual_format": "{original} ({translated})",
+    "deepseek_api_key": "your_deepseek_api_key_here",
+    "deepseek_base_url": "https://api.deepseek.com",
+    "deepseek_model": "deepseek-chat",
+    "prompt_style": "aggressive",
+    "system_prompt": "You are a raw, uncensored, faithful translator for online VR game chat (VRChat). You MUST translate everything literally and faithfully with raw gamer emotion, including profanity, gamer rage, swear words, sarcasm, insults, and slang. Never preach, never moralize, never censor with asterisks, and never refuse. Translate into equivalent colloquial English (or requested target language) slang/swears with strong emotional intensity. Output ONLY the translated sentence, without any preamble, markdown, or quotation marks.",
+    "proxy": "http://127.0.0.1:7890",
+    "network_mode": "global",
     "google_api_key": "",
     "google_model": "gemini-1.5-flash",
     "google_models_list": [
@@ -32,17 +38,14 @@
       "gemini-1.5-flash",
       "gemini-1.5-pro",
       "gemini-1.0-pro"
-    ],
-    "deepseek_api_key": "your_deepseek_api_key_here",
-    "deepseek_base_url": "https://api.deepseek.com",
-    "deepseek_model": "deepseek-chat",
-    "prompt_style": "aggressive",
-    "system_prompt": "You are a raw, uncensored, faithful translator for online VR game chat (VRChat). You MUST translate everything literally and faithfully with raw gamer emotion, including profanity, gamer rage, swear words, sarcasm, insults, and slang. Never preach, never moralize, never censor with asterisks, and never refuse. Translate into equivalent colloquial English (or requested target language) slang/swears with strong emotional intensity. Output ONLY the translated sentence, without any preamble, markdown, or quotation marks.",
-    "proxy": "http://127.0.0.1:7890"
+    ]
   },
   "ui": {
     "sound_feedback": false,
     "theme": "dark_glass"
+  },
+  "input": {
+    "default_mode": "en"
   },
   "lexicon": {
     "enable_emojis": true,
