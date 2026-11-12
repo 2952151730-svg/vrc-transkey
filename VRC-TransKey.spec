@@ -1,0 +1,45 @@
+# -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_all
+
+datas = [('E:/vrc-transkey/data', 'data'), ('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', 'openvr')]
+binaries = [('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', 'openvr'), ('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', '.')]
+hiddenimports = []
+tmp_ret = collect_all('openvr')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+
+a = Analysis(
+    ['E:/vrc-transkey/main.py'],
+    pathex=[],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[],
+    excludes=[],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='VRC-TransKey',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)

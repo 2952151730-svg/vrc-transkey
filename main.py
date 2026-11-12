@@ -299,11 +299,15 @@ class VRCTransKeyApp:
             self.osc.set_typing_status(False)
             return
 
-        elif action in ("cycle_lang_pair", "cycle_lang", "swap_lang"):
-            old_src = self.state.get("source_lang", "zh")
-            old_tgt = self.state.get("target_lang", "en")
-            new_src = "en" if old_src == "zh" else "zh"
-            new_tgt = "zh" if new_src == "en" else "en"
+        elif action in ("cycle_lang_pair", "cycle_lang"):
+            VALID_PAIRS = [("zh", "en"), ("zh", "ja"), ("zh", "ko"), ("zh", "ru"), ("en", "zh")]
+            cur = (self.state.get("source_lang", "zh"), self.state.get("target_lang", "en"))
+            try:
+                idx = VALID_PAIRS.index(cur)
+                nxt = VALID_PAIRS[(idx + 1) % len(VALID_PAIRS)]
+            except ValueError:
+                nxt = VALID_PAIRS[0]
+            new_src, new_tgt = nxt
             self.state["source_lang"] = new_src
             self.state["target_lang"] = new_tgt
             config.set(["translation", "source_lang"], new_src)
@@ -314,12 +318,33 @@ class VRCTransKeyApp:
                 self.state["input_mode"] = "en"
             config.set(["input", "default_mode"], self.state["input_mode"])
             src_name = "中文拼音" if new_src == "zh" else "英文直接"
-            tgt_name = "英文" if new_tgt == "en" else "中文"
+            tgt_name = {"en": "英语", "ja": "日语", "ko": "韩语", "ru": "俄语", "zh": "中文"}.get(new_tgt, new_tgt)
+            self.state["settings_tip"] = f"(成功) 语言模式已切换为: 【{src_name} → {tgt_name}】"
+            self.trigger_translation()
+
+        elif action == "swap_lang":
+            cur_src = self.state.get("source_lang", "zh")
+            cur_tgt = self.state.get("target_lang", "en")
+            if cur_src == "zh":
+                new_src, new_tgt = "en", "zh"
+            else:
+                new_src, new_tgt = "zh", "en"
+            self.state["source_lang"] = new_src
+            self.state["target_lang"] = new_tgt
+            config.set(["translation", "source_lang"], new_src)
+            config.set(["translation", "target_lang"], new_tgt)
+            self.state["input_mode"] = "zh" if new_src == "zh" else "en"
+            config.set(["input", "default_mode"], self.state["input_mode"])
+            src_name = "中文拼音" if new_src == "zh" else "英文直接"
+            tgt_name = "英语" if new_tgt == "en" else "中文"
             self.state["settings_tip"] = f"(成功) 语言模式已切换为: 【{src_name} → {tgt_name}】"
             self.trigger_translation()
 
         elif action == "set_lang_pair":
             src, tgt = data
+            # 严格限制：虚拟键盘只支持输入中文拼音或英文直接打字，严禁非拉丁/非拼音输入
+            if src not in ("zh", "en"):
+                src = "zh"
             self.state["source_lang"] = src
             self.state["target_lang"] = tgt
             config.set(["translation", "source_lang"], src)
@@ -330,20 +355,20 @@ class VRCTransKeyApp:
                 self.state["input_mode"] = "en"
             config.set(["input", "default_mode"], self.state["input_mode"])
             src_name = "中文拼音" if src == "zh" else "英文直接"
-            tgt_name = "英文" if tgt == "en" else "中文"
+            tgt_name = {"en": "英语", "ja": "日语", "ko": "韩语", "ru": "俄语", "zh": "中文"}.get(tgt, tgt)
             self.state["settings_tip"] = f"(成功) 语言模式已设为: 【{src_name} → {tgt_name}】"
             self.trigger_translation()
 
         elif action == "set_source_lang":
             lang = str(data)
+            # 严格限制输入源语言只能是中文或英文
+            if lang not in ("zh", "en"):
+                lang = "zh"
             self.state["source_lang"] = lang
             config.set(["translation", "source_lang"], lang)
-            if lang != "zh":
-                self.state["input_mode"] = "en"
-            else:
-                self.state["input_mode"] = "zh"
-            lang_names = {"zh": "中文", "en": "英语", "ja": "日语", "ko": "韩语"}
-            self.state["settings_tip"] = f"(成功) 输入语言已设为: {lang_names.get(lang, lang)}"
+            self.state["input_mode"] = "zh" if lang == "zh" else "en"
+            src_name = "中文拼音" if lang == "zh" else "英文直接"
+            self.state["settings_tip"] = f"(成功) 输入语言已设为: {src_name}"
             self.trigger_translation()
 
         elif action == "set_target_lang":

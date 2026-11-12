@@ -129,9 +129,12 @@ UI_STRINGS = {
         "eng_gemini": "Google Gemini AI",
         "eng_deepseek": "DeepSeek 大模型",
         "lang_pair_title": "互译模式:",
-        "zh2en": "● 中文拼音 → 英语 (中→英)",
-        "en2zh": "● 英文直接 → 中文 (英→中)",
-        "swap_lang": "一键互换中英",
+        "zh2en": "中 → 英 (EN)",
+        "zh2ja": "中 → 日 (JA)",
+        "zh2ko": "中 → 韩 (KO)",
+        "zh2ru": "中 → 俄 (RU)",
+        "en2zh": "英 → 中 (ZH)",
+        "swap_lang": "切换语言",
         "reset_dict": "重置输入记忆",
         "init_zh": "初始: ● 中文拼音",
         "init_en": "初始: ● 英文直出",
@@ -197,9 +200,12 @@ UI_STRINGS = {
         "eng_gemini": "Google Gemini AI",
         "eng_deepseek": "DeepSeek AI",
         "lang_pair_title": "Mode:",
-        "zh2en": "● Chinese → English (ZH→EN)",
-        "en2zh": "● English → Chinese (EN→ZH)",
-        "swap_lang": "Swap Languages",
+        "zh2en": "ZH → EN",
+        "zh2ja": "ZH → JA",
+        "zh2ko": "ZH → KO",
+        "zh2ru": "ZH → RU",
+        "en2zh": "EN → ZH",
+        "swap_lang": "Swap Lang",
         "reset_dict": "Reset Dict",
         "init_zh": "Init: ● Chinese IME",
         "init_en": "Init: ● Direct English",
@@ -751,17 +757,23 @@ class UIRenderer:
         self._draw_keycap(draw, r_dot, "。", font=self.font_key)
         self._add_button(r_dot, "insert_char", "。")
 
-        # 7. [中 → 英 / 英 → 中] 语言切换键
+        # 7. [中 → 目标 / 英 → 中] 语言切换键 (循环切换中译英/日/韩/俄与英译中)
         r_ime = (690, y, 826, y + key_h)
         cur_src = state.get("source_lang", "zh")
-        ime_label = "中 → 英" if cur_src == "zh" else "EN → ZH"
+        cur_tgt = state.get("target_lang", "en")
+        ui_l = state.get("ui_lang", "zh")
+        if cur_src == "zh":
+            t_short = LANG_SHORT_NAME_MAP.get(cur_tgt, cur_tgt.upper()) if ui_l == "zh" else cur_tgt.upper()
+            ime_label = f"中 → {t_short}"
+        else:
+            ime_label = "英 → 中" if ui_l == "zh" else "EN → ZH"
         self._draw_keycap(
             draw, r_ime, ime_label, font=self.font_key_md,
             fill=COLOR_PRIMARY_SOFT if cur_src == "zh" else COLOR_KEY_FUNC,
             border=COLOR_BORDER_ACTIVE if cur_src == "zh" else COLOR_KEY_FUNC_BORDER,
             text_color=COLOR_TEXT_ACCENT if cur_src == "zh" else COLOR_TEXT_SUB
         )
-        self._add_button(r_ime, "swap_lang")
+        self._add_button(r_ime, "cycle_lang_pair")
 
         # 8. [发送原文]
         r_send_orig = (834, y, WIDTH - 16, y + key_h)
@@ -1365,51 +1377,36 @@ class UIRenderer:
             self._add_button(ds_reset_btn, "reset_default_prompt")
 
         # ------------------------------------------------------------------
-        # 双向语言选择区域 (y: 388..472)：专注中英双向，清爽无遮挡
+        # 语言模式选择区域 (y: 388..472)：严格限制源输入只能是中文拼音或英文直输，支持翻译为多目标语言
         # ------------------------------------------------------------------
         draw.line([(32, 386), (WIDTH - 32, 386)], fill=COLOR_DIVIDER, width=1)
 
         cur_src = state.get("source_lang", "zh")
         cur_tgt = state.get("target_lang", "en")
-        is_zh2en = (cur_src == "zh" and cur_tgt == "en")
-        is_en2zh = (cur_src == "en" and cur_tgt == "zh")
 
-        self._draw_left_text(draw, 36, 430, self._t(state, "lang_pair_title", "语言互译模式:"), self.font_key_md, COLOR_TEXT_MAIN)
+        self._draw_left_text(draw, 36, 430, self._t(state, "lang_pair_title", "互译模式:"), self.font_key_md, COLOR_TEXT_MAIN)
 
-        # 选项 1: 中文拼音 -> 英语
-        btn_zh2en = (180, 408, 480, 452)
-        lbl_zh2en = ("● " if is_zh2en else "") + self._t(state, "zh2en", "中文拼音 → 英语 (中→英)").replace("● ", "")
-        self._draw_keycap(
-            draw, btn_zh2en, lbl_zh2en,
-            font=self.font_key_sm,
-            fill=COLOR_PRIMARY if is_zh2en else COLOR_KEY,
-            border=COLOR_PRIMARY_BORDER if is_zh2en else COLOR_BORDER,
-            text_color=(255, 255, 255, 255) if is_zh2en else COLOR_TEXT_SUB,
-            radius=8, shadow=False
-        )
-        self._add_button(btn_zh2en, "set_lang_pair", ("zh", "en"))
+        pair_configs = [
+            ("zh", "en", "zh2en", (110, 408, 274, 452)),
+            ("zh", "ja", "zh2ja", (282, 408, 446, 452)),
+            ("zh", "ko", "zh2ko", (454, 408, 618, 452)),
+            ("zh", "ru", "zh2ru", (626, 408, 790, 452)),
+            ("en", "zh", "en2zh", (798, 408, 964, 452)),
+        ]
 
-        # 选项 2: 英文直接 -> 中文
-        btn_en2zh = (490, 408, 770, 452)
-        lbl_en2zh = ("● " if is_en2zh else "") + self._t(state, "en2zh", "英文直接 → 中文 (英→中)").replace("● ", "")
-        self._draw_keycap(
-            draw, btn_en2zh, lbl_en2zh,
-            font=self.font_key_sm,
-            fill=COLOR_PRIMARY if is_en2zh else COLOR_KEY,
-            border=COLOR_PRIMARY_BORDER if is_en2zh else COLOR_BORDER,
-            text_color=(255, 255, 255, 255) if is_en2zh else COLOR_TEXT_SUB,
-            radius=8, shadow=False
-        )
-        self._add_button(btn_en2zh, "set_lang_pair", ("en", "zh"))
-
-        # 选项 3: 一键互换中英
-        swap_btn = (780, 408, 964, 452)
-        self._draw_keycap(
-            draw, swap_btn, self._t(state, "swap_lang", "一键互换中英"), font=self.font_key_sm,
-            fill=COLOR_PRIMARY_SOFT, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
-            radius=8, shadow=False
-        )
-        self._add_button(swap_btn, "swap_lang")
+        for p_src, p_tgt, str_key, p_rect in pair_configs:
+            is_active = (cur_src == p_src and cur_tgt == p_tgt)
+            raw_lbl = self._t(state, str_key, f"{p_src.upper()} → {p_tgt.upper()}")
+            disp_lbl = ("● " if is_active else "") + raw_lbl.replace("● ", "")
+            self._draw_keycap(
+                draw, p_rect, disp_lbl,
+                font=self.font_key_sm,
+                fill=COLOR_PRIMARY if is_active else COLOR_KEY,
+                border=COLOR_PRIMARY_BORDER if is_active else COLOR_BORDER,
+                text_color=(255, 255, 255, 255) if is_active else COLOR_TEXT_SUB,
+                radius=8, shadow=False
+            )
+            self._add_button(p_rect, "set_lang_pair", (p_src, p_tgt))
 
         # ------------------------------------------------------------------
         # 底部控制栏 (y: 480..536)
