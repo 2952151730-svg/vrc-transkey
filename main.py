@@ -12,6 +12,26 @@ try:
 except Exception:
     pass
 
+# 确保在 PyInstaller 打包环境 (onefile/standalone) 下 openvr 能够顺利定位到 libopenvr_api_64.dll
+if getattr(sys, "frozen", False):
+    import shutil
+    base_dir = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    openvr_dir = os.path.join(base_dir, "openvr")
+    os.makedirs(openvr_dir, exist_ok=True)
+    root_dll = os.path.join(base_dir, "libopenvr_api_64.dll")
+    target_dll = os.path.join(openvr_dir, "libopenvr_api_64.dll")
+    if os.path.exists(root_dll) and not os.path.exists(target_dll):
+        try:
+            shutil.copy2(root_dll, target_dll)
+        except Exception:
+            pass
+    target_dll_nodot = os.path.join(openvr_dir, "libopenvr_api_64")
+    if os.path.exists(target_dll) and not os.path.exists(target_dll_nodot):
+        try:
+            shutil.copy2(target_dll, target_dll_nodot)
+        except Exception:
+            pass
+
 from config import config, PHRASES_PATH, DEFAULT_SYSTEM_PROMPT, PROMPT_PRESETS, SOCIAL_SYSTEM_PROMPT, AGGRESSIVE_SYSTEM_PROMPT
 from pinyin_engine import PinyinEngine
 from translator import Translator
