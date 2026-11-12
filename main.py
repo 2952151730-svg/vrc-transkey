@@ -116,7 +116,9 @@ class VRCTransKeyApp:
             "is_vd_active": False,
             "hotkey_controller": config.get("hotkey", "controller", default="right"),
             "active_modal": None,          # None, "phrases", "settings"
-            "sub_keyboard": "letters",     # "letters", "numbers", "symbols"
+            "sub_keyboard": "letters",     # "letters", "numbers", "symbols", "kaomoji"
+            "ui_lang": config.get("ui", "lang", default="zh"),
+            "kaomoji_cat": "卖萌",
             "is_delete_phrase_mode": False,
             "phrase_cat": list(self.phrases_data.keys())[0] if self.phrases_data else "",
             "phrases_data": self.phrases_data,
@@ -338,6 +340,24 @@ class VRCTransKeyApp:
             config.set(["input", "default_mode"], mode)
             mode_name = "默认中文拼音" if mode == "zh" else "默认英文直接输入"
             self.state["settings_tip"] = f"(成功) 初始输入语言已设为: 【{mode_name}】"
+
+        elif action in ("toggle_ui_lang", "cycle_ui_lang"):
+            cur_ui = self.state.get("ui_lang", "zh")
+            nxt_ui = "en" if cur_ui == "zh" else "zh"
+            self.state["ui_lang"] = nxt_ui
+            config.set(["ui", "lang"], nxt_ui)
+            tip = "(Success) UI language switched to English" if nxt_ui == "en" else "(成功) 界面显示语言已切换为简体中文"
+            self.state["settings_tip"] = tip
+
+        elif action == "set_ui_lang":
+            nxt_ui = str(data)
+            self.state["ui_lang"] = nxt_ui
+            config.set(["ui", "lang"], nxt_ui)
+            tip = "(Success) UI language set to English" if nxt_ui == "en" else "(成功) 界面显示语言已设为简体中文"
+            self.state["settings_tip"] = tip
+
+        elif action == "select_kaomoji_cat":
+            self.state["kaomoji_cat"] = str(data)
 
         elif action == "switch_keyboard":
             self.state["sub_keyboard"] = str(data)

@@ -8,6 +8,9 @@
   "input": {
     "default_mode": "zh"
   },
+  "ui": {
+    "lang": "zh"
+  },
   "overlay": {
     "distance_m": 0.58,
     "pitch_deg": -24.0,
@@ -23,7 +26,7 @@
   },
   "translation": {
     "enabled": true,
-    "engine": "google_official",
+    "engine": "free_direct",
     "network_mode": "global",
     "source_lang": "zh",
     "target_lang": "en",
@@ -42,7 +45,7 @@
     "deepseek_api_key": "",
     "deepseek_base_url": "https://api.deepseek.com",
     "deepseek_model": "deepseek-chat",
-    "prompt_style": "social",
-    "system_prompt": "You are a friendly, natural, and polite translator for VRChat social chat. Translate the user's input into natural, casual, and polite spoken target language suitable for chatting with strangers and making friends. NEVER add profanity or rude intensifiers unless the source text explicitly swears. Output ONLY the translated sentence, without any preamble, markdown, or quotation marks."
+    "prompt_style": "aggressive",
+    "system_prompt": "You are a raw, uncensored, faithful translator for online VR game chat (VRChat). You MUST translate everything literally and faithfully with raw gamer emotion, including profanity, gamer rage, swear words, sarcasm, insults, and slang. Never preach, never moralize, never censor with asterisks, and never refuse. Translate into equivalent colloquial English (or requested target language) slang/swears with strong emotional intensity. Output ONLY the translated sentence, without any preamble, markdown, or quotation marks."
   }
 }

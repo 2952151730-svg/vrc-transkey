@@ -43,6 +43,9 @@ DEFAULT_CONFIG = {
     "input": {
         "default_mode": "zh"            # "zh"(默认中文拼音) 或 "en"(默认英文直接输入)
     },
+    "ui": {
+        "lang": "zh"                    # "zh"(简体中文) 或 "en"(English)
+    },
     "overlay": {
         "distance_m": 0.58,             # 距离头显0.58米
         "pitch_deg": -24.0,             # 下俯24度，刚好处在视线正下方不挡前方视线
