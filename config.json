@@ -26,7 +26,7 @@
   },
   "translation": {
     "enabled": true,
-    "engine": "free_direct",
+    "engine": "google_gemini",
     "network_mode": "global",
     "source_lang": "zh",
     "target_lang": "en",

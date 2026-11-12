@@ -142,11 +142,18 @@ class VRCTransKeyApp:
             "is_delete_phrase_mode": False,
             "phrase_cat": list(self.phrases_data.keys())[0] if self.phrases_data else "",
             "phrases_data": self.phrases_data,
-            "settings_tip": ""
+            "settings_tip": "",
+            "settings_tab": "engine",
+            "_hover_rect": None,
+            "_pressed_rect": None,
+            "_toast_msg": "",
+            "_toast_type": "info"
         }
 
         self.dirty = True
         self.current_clickables = []
+        self._press_clear_time = 0.0
+        self._toast_clear_time = 0.0
 
         if not self.desktop_mode:
             from vr_overlay import VROverlayManager
@@ -596,6 +603,33 @@ class VRCTransKeyApp:
 
             threading.Thread(target=_run_test, daemon=True).start()
 
+        elif action == "set_settings_tab":
+            self.state["settings_tab"] = str(data)
+
+        elif action == "set_send_mode":
+            mode = str(data)
+            self.state["send_mode"] = mode
+            config.set(["translation", "send_mode"], mode)
+            names = {
+                "translated_only": "仅发译文",
+                "bilingual": "双语对照 (译文+原文)",
+                "original_only": "仅发原文"
+            }
+            self.state["settings_tip"] = f"(成功) 发送输出模式已切换为：{names.get(mode, mode)}"
+
+        elif action == "set_laser_guide":
+            nxt_mode = str(data)
+            self.state["laser_guide"] = nxt_mode
+            config.set(["overlay", "laser_guide"], nxt_mode)
+            if self.overlay_mgr:
+                self.overlay_mgr.set_laser_mode(nxt_mode)
+            mode_names = {
+                "auto": "智能识别 (VD开启 / SteamVR原生隐藏)",
+                "on": "强制开启 3D 激光引导线",
+                "off": "强制关闭第三方引导线"
+            }
+            self.state["settings_tip"] = f"(成功) 激光引导线已切换为：{mode_names.get(nxt_mode, nxt_mode)}"
+
         elif action in ("adjust_scale", "adjust_vr_width"):
             delta = float(data)
             cur_w = float(self.state.get("overlay_width_m", 0.42))
@@ -836,9 +870,32 @@ class VRCTransKeyApp:
 
         self.dirty = True
 
+    def show_toast(self, msg: str, toast_type: str = "info", duration: float = 1.6):
+        self.state["_toast_msg"] = msg
+        self.state["_toast_type"] = toast_type
+        self._toast_clear_time = time.time() + duration
+        self.dirty = True
+
+    def _find_hit_rect(self, px: int, py: int):
+        for rect, action, _ in self.current_clickables:
+            if action == "drag_handle":
+                continue
+            rx1, ry1, rx2, ry2 = rect
+            if rx1 <= px <= rx2 and ry1 <= py <= ry2:
+                return rect
+        return None
+
+    def _tick_visual_timers(self):
+        now = time.time()
+        if self.state.get("_pressed_rect") is not None and now >= self._press_clear_time:
+            self.state["_pressed_rect"] = None
+            self.dirty = True
+        if self.state.get("_toast_msg") and now >= self._toast_clear_time:
+            self.state["_toast_msg"] = ""
+            self.dirty = True
+
     def _do_send_message(self, send_type: str = "translated"):
-        """执行发送到 VRChat Chatbox (独立发送外语译文或发送中文)"""
-        # 若拼音缓冲区还有未上屏的词，自动将首选词上屏后再发送
+        """执行发送到 VRChat Chatbox (支持纯译文 / 双语对照 / 纯原文)"""
         if self.state["pinyin_buffer"]:
             if self.state["candidates"]:
                 self._commit_candidate(0)
@@ -856,14 +913,18 @@ class VRCTransKeyApp:
             if len(self.history) > 15:
                 self.history.pop(0)
 
-        if send_type == "translated":
+        send_mode = self.state.get("send_mode", "translated_only")
+        if send_type == "translated" and send_mode != "original_only":
             if not trans:
                 trans = self.translator.translate_sync(
                     orig,
                     self.state["target_lang"],
                     source_lang=self.state.get("source_lang", "zh")
                 )
-            send_text = trans if trans else orig
+            if send_mode == "bilingual" and trans and trans != orig:
+                send_text = f"{trans}\n{orig}"
+            else:
+                send_text = trans if trans else orig
         else:
             send_text = orig
 
@@ -874,6 +935,8 @@ class VRCTransKeyApp:
         self.state["pinyin_buffer"] = ""
         self.state["translated_text"] = ""
         self.update_candidates()
+        ui_l = self.state.get("ui_lang", "zh")
+        self.show_toast("● 已发送至 VRChat" if ui_l == "zh" else "● Sent to VRChat", "success", 1.5)
         self.dirty = True
 
     def _apply_vr_width(self, nxt: float):
@@ -897,7 +960,10 @@ class VRCTransKeyApp:
                 if action == "vr_size_slider" and isinstance(data, tuple) and len(data) == 2:
                     self.handle_action("vr_size_slider", (data[0], data[1], px), controller_idx=None if is_drag_hold else controller_idx)
                 elif not is_drag_hold:
+                    self.state["_pressed_rect"] = rect
+                    self._press_clear_time = time.time() + 0.11
                     self.handle_action(action, data, controller_idx)
+                    self.dirty = True
                 break
 
     def run_vr_loop(self):
@@ -938,6 +1004,15 @@ class VRCTransKeyApp:
                     self.process_mouse_click(px, py, ctrl_idx, is_drag_hold=False)
                 elif ev_type == "drag_hold":
                     self.process_mouse_click(px, py, ctrl_idx, is_drag_hold=True)
+
+            # VR 激光悬停高亮检测 (仅当悬停热区变化时才触发重绘，零多余 GPU 上传)
+            h_xy = getattr(self.overlay_mgr, "current_hover_xy", None)
+            new_hover = self._find_hit_rect(h_xy[0], h_xy[1]) if (h_xy and self.overlay_mgr.is_visible) else None
+            if new_hover != self.state.get("_hover_rect"):
+                self.state["_hover_rect"] = new_hover
+                self.dirty = True
+
+            self._tick_visual_timers()
 
             cur_vis = self.overlay_mgr.is_visible
             if cur_vis and not last_is_visible:
@@ -987,15 +1062,11 @@ class VRCTransKeyApp:
 
         def on_motion(event):
             px, py = int(event.x), int(event.y)
-            hovered = False
-            for rect, action, _ in self.current_clickables:
-                if action == "drag_handle":
-                    continue
-                rx1, ry1, rx2, ry2 = rect
-                if rx1 <= px <= rx2 and ry1 <= py <= ry2:
-                    hovered = True
-                    break
-            canvas.config(cursor="hand2" if hovered else "")
+            new_hover = self._find_hit_rect(px, py)
+            canvas.config(cursor="hand2" if new_hover else "")
+            if new_hover != self.state.get("_hover_rect"):
+                self.state["_hover_rect"] = new_hover
+                refresh_canvas()
 
         def on_paste_shortcut(event):
             if self.state.get("active_modal") == "settings":
@@ -1061,9 +1132,10 @@ class VRCTransKeyApp:
         refresh_canvas()
 
         def periodic_check():
+            self._tick_visual_timers()
             if self.dirty:
                 refresh_canvas()
-            root.after(30, periodic_check)
+            root.after(25, periodic_check)
 
         root.after(30, periodic_check)
         print("[Desktop] 桌面测试窗口已打开！支持鼠标点击虚拟按键，也支持直接使用电脑物理键盘打字 (Enter发译文 / Shift+Enter发中文)！")

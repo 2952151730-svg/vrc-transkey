@@ -1,510 +1,696 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TransKey VR — 专为 VRChat 与 SteamVR 打造的轻量空间虚拟键盘与实时翻译</title>
-  <link rel="icon" type="image/svg+xml" href="logo.svg">
-  <link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="apple-touch-icon" href="logo.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VRC-TransKey v1.3.0 — VRChat Spatial Cyber-Glass 中文拼音键盘与实时翻译终端</title>
+  <meta name="description" content="专为 VRChat 打造的 Spatial Cyber-Glass 空间悬浮中文拼音输入法与实时多语翻译终端。内置 8,757 规范单字 + 10万核心高频词库，0.6 秒冷启动，支持 Google、DeepSeek、Gemini、Ollama 与 OSC 直连。" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png" />
   <style>
     :root {
-      --bg: #090a0f;
-      --card-bg: rgba(18, 20, 29, 0.7);
-      --border: rgba(255, 255, 255, 0.08);
-      --border-hover: rgba(56, 189, 248, 0.35);
-      --primary: #38bdf8;
-      --accent: #818cf8;
+      --bg: #070b14;
+      --bg-elevated: rgba(15, 23, 42, 0.72);
+      --glass-border: rgba(148, 163, 184, 0.16);
+      --glass-highlight: rgba(56, 189, 248, 0.35);
       --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --green: #10b981;
+      --muted: #94a3b8;
+      --cyan: #38bdf8;
+      --violet: #a78bfa;
+      --emerald: #34d399;
+      --radius: 18px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(56, 189, 248, 0.16), transparent 36%),
+        radial-gradient(circle at 85% 18%, rgba(167, 139, 250, 0.16), transparent 38%),
+        radial-gradient(circle at 50% 85%, rgba(52, 211, 153, 0.08), transparent 42%),
+        var(--bg);
       color: var(--text);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.6;
-      overflow-x: hidden;
+      line-height: 1.65;
       min-height: 100vh;
+      overflow-x: hidden;
     }
-    a { color: inherit; text-decoration: none; }
-    
-    /* 顶部导航 */
-    nav {
-      max-width: 1100px;
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .container {
+      max-width: 1120px;
       margin: 0 auto;
-      padding: 24px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
     }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(7, 11, 20, 0.76);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .nav {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
     .brand {
       display: flex;
       align-items: center;
       gap: 12px;
       font-weight: 700;
-      font-size: 18px;
-      letter-spacing: -0.5px;
-    }
-    .brand-logo {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
-      vertical-align: middle;
-    }
-    .brand-tag {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--primary);
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      padding: 2px 8px;
-      border-radius: 999px;
-    }
-    .nav-links {
-      display: flex;
-      gap: 24px;
-      font-size: 14px;
-      color: var(--text-muted);
-      align-items: center;
-    }
-    .nav-links a:hover { color: var(--text); }
-    .btn-nav-github {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    .btn-nav-github:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.2);
+      font-size: 1.08rem;
+      letter-spacing: 0.01em;
     }
 
-    /* Hero 首屏 */
+    .brand img {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+    }
+
+    .brand-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 9px;
+      border-radius: 999px;
+      color: var(--cyan);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .nav-links a:hover {
+      color: var(--text);
+    }
+
+    .nav-cta {
+      padding: 8px 16px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(167, 139, 250, 0.22));
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--text) !important;
+      font-weight: 600;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .nav-cta:hover {
+      transform: translateY(-1px);
+      border-color: var(--cyan);
+    }
+
+    /* Hero */
     .hero {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 80px 24px 50px;
+      padding: 84px 0 56px;
       text-align: center;
     }
+
     .pill {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
-      color: var(--primary);
-      background: rgba(56, 189, 248, 0.08);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      padding: 4px 14px;
+      padding: 6px 14px;
       border-radius: 999px;
-      margin-bottom: 24px;
-      font-weight: 500;
-    }
-    h1 {
-      font-size: clamp(34px, 5.5vw, 62px);
-      font-weight: 800;
-      letter-spacing: -1.5px;
-      line-height: 1.15;
-      margin-bottom: 20px;
-    }
-    h1 span {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .subtitle {
-      font-size: clamp(16px, 1.8vw, 19px);
-      color: var(--text-muted);
-      max-width: 640px;
-      margin: 0 auto 36px;
-      font-weight: 400;
-      line-height: 1.7;
-    }
-    .cta-group {
-      display: flex;
-      justify-content: center;
-      gap: 14px;
-      flex-wrap: wrap;
-      margin-bottom: 60px;
-    }
-    .btn-main {
-      background: var(--text);
-      color: #000;
-      font-weight: 600;
-      font-size: 14px;
-      padding: 12px 24px;
-      border-radius: 10px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-    .btn-main:hover {
-      background: #e2e8f0;
-      transform: translateY(-1px);
-    }
-    .btn-ghost {
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text);
-      border: 1px solid var(--border);
-      font-weight: 500;
-      font-size: 14px;
-      padding: 12px 24px;
-      border-radius: 10px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-    .btn-ghost:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.2);
+      font-size: 0.84rem;
+      color: var(--cyan);
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.26);
+      margin-bottom: 22px;
     }
 
-    /* 实时打字效果演示卡片 */
-    .demo-container {
-      max-width: 760px;
-      margin: 0 auto 90px;
-      padding: 0 24px;
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 10px var(--emerald);
     }
-    .terminal-card {
-      background: #0f121b;
-      border: 1px solid var(--border);
+
+    h1 {
+      font-size: clamp(2.15rem, 4.6vw, 3.6rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin-bottom: 18px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(120deg, #e2e8f0 10%, var(--cyan) 52%, var(--violet) 95%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-sub {
+      max-width: 720px;
+      margin: 0 auto 34px;
+      font-size: 1.06rem;
+      color: var(--muted);
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 48px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 26px;
+      border-radius: 12px;
+      font-size: 0.96rem;
+      font-weight: 600;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(14, 165, 233, 0.28);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 36px rgba(14, 165, 233, 0.38);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      border-color: var(--glass-highlight);
+    }
+
+    /* Metrics Bar */
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 72px;
+    }
+
+    .metric-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
       border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      padding: 20px 16px;
+      backdrop-filter: blur(12px);
+    }
+
+    .metric-value {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .metric-value span {
+      color: var(--cyan);
+    }
+
+    .metric-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    /* Mockup Preview */
+    .preview-shell {
+      background: linear-gradient(160deg, rgba(30, 41, 59, 0.72), rgba(15, 23, 42, 0.88));
+      border: 1px solid rgba(56, 189, 248, 0.28);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      margin-bottom: 84px;
       text-align: left;
     }
-    .terminal-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 18px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .term-dots {
-      display: flex;
-      gap: 6px;
-    }
-    .term-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .t-red { background: #ef4444; opacity: 0.8; }
-    .t-yel { background: #f59e0b; opacity: 0.8; }
-    .t-grn { background: #10b981; opacity: 0.8; }
-    .term-meta {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: var(--green);
-    }
-    .term-row {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
-      margin-bottom: 12px;
-    }
-    .term-label {
-      color: var(--text-muted);
-      font-size: 12px;
-      margin-bottom: 4px;
-      display: block;
-    }
-    .term-typing {
-      color: #fff;
-      min-height: 24px;
-    }
-    .term-output {
-      background: rgba(56, 189, 248, 0.08);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: var(--primary);
-      margin-top: 10px;
-      font-size: 14px;
-    }
-    .cursor {
-      display: inline-block;
-      width: 7px;
-      height: 15px;
-      background: var(--primary);
-      vertical-align: middle;
-      margin-left: 4px;
-      animation: blink 1s infinite;
-    }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-    /* 特性网格 */
-    .section-title {
-      text-align: center;
-      font-size: 26px;
-      font-weight: 700;
-      margin-bottom: 40px;
-      letter-spacing: -0.5px;
+    .preview-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.14);
     }
-    .grid {
-      max-width: 1000px;
-      margin: 0 auto 90px;
-      padding: 0 24px;
+
+    .preview-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.14);
+      color: var(--cyan);
+      border: 1px solid rgba(56, 189, 248, 0.26);
+    }
+
+    .badge-violet {
+      background: rgba(167, 139, 250, 0.14);
+      color: var(--violet);
+      border-color: rgba(167, 139, 250, 0.28);
+    }
+
+    .preview-display {
+      background: rgba(7, 11, 20, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 14px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+
+    .preview-cn {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .preview-en {
+      font-size: 0.9rem;
+      color: var(--cyan);
+    }
+
+    .preview-cands {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(8, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .cand-item {
+      text-align: center;
+      padding: 7px 6px;
+      border-radius: 9px;
+      font-size: 0.85rem;
+      background: rgba(30, 41, 59, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      color: #e2e8f0;
+    }
+
+    .cand-item.active {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: rgba(56, 189, 248, 0.52);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .preview-keys {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 8px;
+    }
+
+    .keycap {
+      text-align: center;
+      padding: 11px 0;
+      border-radius: 10px;
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      background: linear-gradient(180deg, rgba(51, 65, 85, 0.72), rgba(30, 41, 59, 0.92));
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 4px 0 rgba(2, 6, 23, 0.75);
+    }
+
+    .keycap.glow {
+      border-color: rgba(56, 189, 248, 0.68);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.26), 0 4px 0 rgba(2, 6, 23, 0.75);
+      color: #fff;
+    }
+
+    /* Sections */
+    section {
+      padding: 36px 0 64px;
+    }
+
+    .section-head {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 40px;
+    }
+
+    .section-head h2 {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 750;
+      margin-bottom: 10px;
+    }
+
+    .section-head p {
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 20px;
     }
-    .feature-box {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 24px;
-      transition: all 0.2s;
-    }
-    .feature-box:hover {
-      border-color: var(--border-hover);
-      transform: translateY(-2px);
-    }
-    .feature-icon {
-      font-size: 22px;
-      margin-bottom: 14px;
-      display: inline-block;
-    }
-    .feature-box h3 {
-      font-size: 17px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .feature-box p {
-      font-size: 14px;
-      color: var(--text-muted);
-      line-height: 1.6;
+
+    .card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 26px 24px;
+      backdrop-filter: blur(12px);
+      transition: transform 0.2s ease, border-color 0.2s ease;
     }
 
-    /* 架构图板块 */
-    .arch-wrap {
-      max-width: 900px;
-      margin: 0 auto 90px;
-      padding: 0 24px;
-      text-align: center;
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: var(--glass-highlight);
     }
-    .arch-flow {
-      display: flex;
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 24px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
+      font-size: 1.2rem;
+      margin-bottom: 14px;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
     }
-    .arch-node {
-      background: #0f121b;
-      border: 1px solid var(--border);
-      padding: 12px 18px;
-      border-radius: 10px;
-      color: var(--text);
-    }
-    .arch-arrow { color: var(--primary); font-weight: bold; }
 
-    /* 页脚 */
-    footer {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 40px 24px 60px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 20px;
-      font-size: 13px;
-      color: var(--text-muted);
+    .card h3 {
+      font-size: 1.08rem;
+      font-weight: 700;
+      margin-bottom: 8px;
     }
-    .footer-left {
+
+    .card p {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    /* Steps */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .step-num {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--glass-border);
+      padding: 34px 0 44px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .footer-inner {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
       gap: 12px;
     }
+
     .footer-links {
       display: flex;
       gap: 20px;
     }
-    .footer-links a:hover { color: var(--text); }
+
+    .footer-links a:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 900px) {
+      .metrics,
+      .grid-3,
+      .steps {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .preview-cands {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .nav-links {
+        display: none;
+      }
+      .metrics,
+      .grid-3,
+      .steps {
+        grid-template-columns: 1fr;
+      }
+      .preview-keys {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
   </style>
 </head>
 <body>
-
-  <!-- 导航 -->
-  <nav>
-    <div class="brand">
-      <img src="favicon.png" alt="TransKey VR Logo" class="brand-logo">
-      <span>TransKey VR</span>
-      <span class="brand-tag">Open Beta</span>
-    </div>
-    <div class="nav-links">
-      <a href="#features">功能亮点</a>
-      <a href="#how-it-works">技术流程</a>
-      <a href="mailto:postmaster@transkeyvr.top">联系反馈</a>
-      <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" class="btn-nav-github">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-        GitHub
+  <header>
+    <div class="container nav">
+      <a href="#" class="brand">
+        <img src="favicon.svg" alt="VRC-TransKey" />
+        <span>VRC-TransKey</span>
+        <span class="brand-tag">v1.3.0</span>
       </a>
+      <nav class="nav-links">
+        <a href="#features">核心特性</a>
+        <a href="#architecture">v1.3.0 升级</a>
+        <a href="#quickstart">快速上手</a>
+        <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/2952151730-svg/vrc-transkey/releases" target="_blank" rel="noopener" class="nav-cta">下载发行版</a>
+      </nav>
     </div>
-  </nav>
+  </header>
 
-  <!-- Hero 区域 -->
-  <section class="hero">
-    <div class="pill">⚡ 专为 VRChat 与 SteamVR 量身定制</div>
-    <h1>在虚拟世界中打字<br>与<span>全球玩家</span>无界沟通</h1>
-    <p class="subtitle">
-      超轻量 OpenVR 3D 悬浮键盘，深度内置 37 万高频中文词库与简拼联想，通过 Google Gemini 与 DeepSeek 双 AI 引擎实现低于 300ms 的实时双向空间翻译。
-    </p>
+  <main class="container">
+    <section class="hero">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        v1.3.0 现已发布 · Spatial Cyber-Glass UI · 10 万核心精简词库
+      </div>
+      <h1>
+        在 VRChat 空间中，
+        <span class="gradient-text">优雅地打出每一句中文与跨语对话</span>
+      </h1>
+      <p class="hero-sub">
+        专为 SteamVR 与 Virtual Desktop 打造的轻量级空间悬浮拼音键盘与实时多语翻译终端。
+        全新 3D 玻璃拟态视觉、悬停按压触感反馈、8,757 个规范单字与 10 万核心高频词库，OSC 直达 Chatbox。
+      </p>
+      <div class="hero-actions">
+        <a href="https://github.com/2952151730-svg/vrc-transkey/releases" target="_blank" rel="noopener" class="btn btn-primary">
+          下载 VRC-TransKey v1.3.0
+        </a>
+        <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" rel="noopener" class="btn btn-secondary">
+          查看源码与文档
+        </a>
+      </div>
 
-    <div class="cta-group">
-      <a href="https://github.com/2952151730-svg/vrc-transkey/releases" target="_blank" class="btn-main">
-        <span>🚀 前往 Releases 下载 (.exe)</span>
-      </a>
-      <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" class="btn-ghost">
-        <span>⭐️ 查看 GitHub 源代码</span>
-      </a>
-    </div>
-  </section>
-
-  <!-- 实时打字效果演示 -->
-  <div class="demo-container">
-    <div class="terminal-card">
-      <div class="terminal-top">
-        <div class="term-dots">
-          <div class="term-dot t-red"></div>
-          <div class="term-dot t-yel"></div>
-          <div class="term-dot t-grn"></div>
+      <div class="metrics">
+        <div class="metric-card">
+          <div class="metric-value"><span>103,886</span> 词条</div>
+          <div class="metric-label">8,757 规范单字 + 10万核心高频词组</div>
         </div>
-        <div class="term-meta">● OSC 127.0.0.1:9000 活跃直连</div>
-      </div>
-      <div class="term-row">
-        <span class="term-label">> VR 虚拟键盘拼音实时输入:</span>
-        <div class="term-typing">
-          <span id="typing-input"></span><span class="cursor"></span>
+        <div class="metric-card">
+          <div class="metric-value"><span>~130</span> MB</div>
+          <div class="metric-label">专用内存占用大幅瘦身（工作集 ~160MB）</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value"><span>0.6</span> 秒</div>
+          <div class="metric-label">词库极速冷启动，OpenGL 纹理直传</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value"><span>13</span> 种语言</div>
+          <div class="metric-label">Google / DeepSeek / Gemini / Ollama</div>
         </div>
       </div>
-      <div class="term-output">
-        <span style="font-size:11px; opacity:0.7; display:block; margin-bottom:2px;">VRChat Avatar ChatBox 实时广播:</span>
-        <span id="typing-output"></span>
+
+      <div class="preview-shell" aria-label="Spatial Cyber-Glass 键盘预览示意">
+        <div class="preview-topbar">
+          <div class="preview-status">
+            <span class="badge">Spatial Cyber-Glass</span>
+            <span class="badge badge-violet">OSC 127.0.0.1:9000</span>
+            <span>VD / SteamVR 智能射线隔离已启用</span>
+          </div>
+          <div class="preview-status">
+            <span>翻译引擎：DeepSeek / Google / Gemini</span>
+          </div>
+        </div>
+        <div class="preview-display">
+          <div class="preview-cn">今天这个世界的光影好好看，大家一起拍照吧！</div>
+          <div class="preview-en">The lighting in this world looks amazing today — let's take a photo together!</div>
+        </div>
+        <div class="preview-cands">
+          <div class="cand-item active">1. 大家</div>
+          <div class="cand-item">2. 打架</div>
+          <div class="cand-item">3. 大佳</div>
+          <div class="cand-item">4. 达家</div>
+          <div class="cand-item">5. 答家</div>
+          <div class="cand-item">6. 大加</div>
+          <div class="cand-item">7. 打家</div>
+          <div class="cand-item">8. 搭架</div>
+        </div>
+        <div class="preview-keys">
+          <div class="keycap">Q</div>
+          <div class="keycap">W</div>
+          <div class="keycap glow">E</div>
+          <div class="keycap">R</div>
+          <div class="keycap">T</div>
+          <div class="keycap">Y</div>
+          <div class="keycap">U</div>
+          <div class="keycap">I</div>
+          <div class="keycap">O</div>
+          <div class="keycap">P</div>
+        </div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- 特性卡片 -->
-  <div id="features" style="max-width: 1000px; margin: 0 auto;">
-    <h2 class="section-title">核心技术亮点</h2>
-  </div>
-  <div class="grid">
-    <div class="feature-box">
-      <div class="feature-icon">⌨️</div>
-      <h3>深度优化 37 万中文词库</h3>
-      <p>针对日常中文输入习惯优化，内置丰富高频词库，支持拼音全拼与常用首字母简写（如 wsm 快速联想“为什么”、yyds 等）。</p>
-    </div>
+    <section id="features">
+      <div class="section-head">
+        <h2>为 VR 社交而生的输入与翻译体验</h2>
+        <p>兼顾头显内清晰度、流畅度与跨语言沟通效率，无需切出桌面即可流畅聊天。</p>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon">🪟</div>
+          <h3>Spatial Cyber-Glass 立体键帽</h3>
+          <p>全新设计的深空玻璃拟态键盘与 3D 键帽层次，配合射线悬停发光、按压微移反馈与顶部 Toast 状态提示，操作更跟手。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎛️</div>
+          <h3>双栏模块化控制中心</h3>
+          <p>将设置面板重整为「翻译引擎」「语言与输入」「空间与引导」三大页签，引擎切换、送出模式与空间引导一目了然。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📚</div>
+          <h3>精简高频中文词库</h3>
+          <p>精选 8,757 个规范单字与近 10 万条核心高频词组（共 103,886 条），支持全拼、简拼、混拼与本地自造词动态记忆。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🌐</div>
+          <h3>多引擎 AI 实时翻译</h3>
+          <p>内置 Google、MyMemory 免费直连，同时支持接入 DeepSeek、Google Gemini 与本地 Ollama，提供自然口语化的跨语对话。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📡</div>
+          <h3>VRChat OSC 直连 Chatbox</h3>
+          <p>通过本地 OSC 端口 9000 直接推送输入状态与译文到角色头顶聊天框，支持仅译文或原文+译文双语对照展示。</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <h3>VD / SteamVR 智能射线隔离</h3>
+          <p>针对 Virtual Desktop 与原生 SteamVR 控制器射线进行独立优化与防误触隔离，同时提供无头显桌面预览模式。</p>
+        </div>
+      </div>
+    </section>
 
-    <div class="feature-box">
-      <div class="feature-icon">⚡</div>
-      <h3>~30MB 极致轻量常驻</h3>
-      <p>彻底剔除重型 Chromium/CEF 浏览器框架，不吃显存不掉帧，毫秒级冷启动唤出，保障 VR 顺畅帧率。</p>
-    </div>
+    <section id="architecture">
+      <div class="section-head">
+        <h2>v1.3.0 重点打磨与性能优化</h2>
+        <p>不仅重新设计了视觉与交互，也对词库体积与内存占用做了深度瘦身。</p>
+      </div>
+      <div class="grid-3">
+        <div class="card">
+          <h3>内存减负</h3>
+          <p>裁剪长尾生僻词并限制低频混拼索引，桌面预览专用内存降至 ~130 MB（工作集 ~160 MB），长时间常驻 VR 后台依然轻盈。</p>
+        </div>
+        <div class="card">
+          <h3>8 栏自适应候选框</h3>
+          <p>全宽 8 候选词排列配合翻页箭头与内置颜文字 / Emoji 面板，单字与长词组在头显高分屏中清晰易点。</p>
+        </div>
+        <div class="card">
+          <h3>零闪烁 GPU 纹理同步</h3>
+          <p>通过 PyQt6 离屏渲染与 OpenGL 纹理直接更新 OpenVR Overlay，避免传统截屏式传输造成的卡顿与闪烁。</p>
+        </div>
+      </div>
+    </section>
 
-    <div class="feature-box">
-      <div class="feature-icon">🌐</div>
-      <h3>Google AI & DeepSeek 双引擎</h3>
-      <p>支持 Google Gemini 官方大模型与 DeepSeek，内置游戏黑话与日常口语特调提示词，告别生硬机翻。</p>
-    </div>
+    <section id="quickstart">
+      <div class="section-head">
+        <h2>三步快速启动</h2>
+        <p>开箱即用的单文件可执行程序，也提供桌面预览脚本方便无头显调试。</p>
+      </div>
+      <div class="steps">
+        <div class="card">
+          <div class="step-num">Step 01</div>
+          <h3>下载发行版</h3>
+          <p>前往 GitHub Releases 下载 <code>VRC-TransKey.exe</code>；如需无头显预览，同时下载 <code>启动_桌面预览模式.bat</code>。</p>
+        </div>
+        <div class="card">
+          <div class="step-num">Step 02</div>
+          <h3>开启 VRChat OSC</h3>
+          <p>在 VRChat 中打开圆盘菜单 <strong>Options → OSC → Enabled</strong>，允许本地端口 9000 接收 Chatbox 消息。</p>
+        </div>
+        <div class="card">
+          <div class="step-num">Step 03</div>
+          <h3>启动并开始对话</h3>
+          <p>启动 SteamVR 后运行 <code>VRC-TransKey.exe</code>，通过手柄射线召唤空间键盘，输入拼音即可实时翻译发送。</p>
+        </div>
+      </div>
+    </section>
+  </main>
 
-    <div class="feature-box">
-      <div class="feature-icon">🎯</div>
-      <h3>人眼工效视线定位</h3>
-      <p>唤出自动下俯 24° 自然落在视线正下方，不遮挡正前方镜子与朋友，支持右手柄自由拖拽定格世界坐标。</p>
-    </div>
-
-    <div class="feature-box">
-      <div class="feature-icon">🌍</div>
-      <h3>海外直连与国内智能分流</h3>
-      <p>海外用户零配置直连 Google 全球 API；国内用户一键开启国内加速接口或配置本地代理，全球可用。</p>
-    </div>
-
-    <div class="feature-box">
-      <div class="feature-icon">🛡️</div>
-      <h3>本地直连与隐私优先</h3>
-      <p>本地 OSC UDP 协议与 VRChat 直连通信，不设云端中间服务器，不留存用户个人打字与社交隐私数据。</p>
-    </div>
-  </div>
-
-  <!-- 技术流程 -->
-  <div id="how-it-works" class="arch-wrap">
-    <h2 class="section-title">极简技术流程</h2>
-    <div class="arch-flow">
-      <div class="arch-node">SteamVR 头显手柄</div>
-      <div class="arch-arrow">➔</div>
-      <div class="arch-node">OpenVR 3D Overlay</div>
-      <div class="arch-arrow">➔</div>
-      <div class="arch-node">37万词库拼音引擎</div>
-      <div class="arch-arrow">➔</div>
-      <div class="arch-node">Google / DeepSeek AI</div>
-      <div class="arch-arrow">➔</div>
-      <div class="arch-node">OSC 广播至 VRChat</div>
-    </div>
-  </div>
-
-  <!-- 页脚 -->
   <footer>
-    <div class="footer-left">
-      <span style="font-weight:600; color:#fff;">TransKey VR</span>
-      <span>·</span>
-      <span>遵循 MIT 开源许可协议</span>
-    </div>
-    <div class="footer-links">
-      <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank">GitHub 开源仓库</a>
-      <a href="https://github.com/2952151730-svg/vrc-transkey/blob/main/LICENSE" target="_blank">开源许可证</a>
-      <a href="mailto:postmaster@transkeyvr.top">开发者联系</a>
+    <div class="container footer-inner">
+      <div>VRC-TransKey · MIT License · transkeyvr.top</div>
+      <div class="footer-links">
+        <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" rel="noopener">GitHub 仓库</a>
+        <a href="https://github.com/2952151730-svg/vrc-transkey/releases" target="_blank" rel="noopener">Releases 下载</a>
+      </div>
     </div>
   </footer>
-
-  <script>
-    // 动态打字效果
-    const samples = [
-      { in: "大家晚上好，很高兴在 VRChat 认识你们！", out: "[TransKey] Good evening everyone, so glad to meet you in VRChat!" },
-      { in: "今晚这个房间的场景做得很精致啊", out: "[TransKey] The world design tonight is super detailed and aesthetic." },
-      { in: "我正在用 VR 虚拟键盘无缝打字交流", out: "[TransKey] I am typing seamlessly with this in-VR virtual keyboard." }
-    ];
-    let sIdx = 0, cIdx = 0, isDeleting = false;
-    const inEl = document.getElementById('typing-input');
-    const outEl = document.getElementById('typing-output');
-
-    function loop() {
-      const cur = samples[sIdx];
-      if (!isDeleting) {
-        inEl.textContent = cur.in.slice(0, cIdx++);
-        if (cIdx > cur.in.length) {
-          outEl.textContent = cur.out;
-          setTimeout(() => { isDeleting = true; loop(); }, 2400);
-          return;
-        }
-      } else {
-        inEl.textContent = cur.in.slice(0, cIdx--);
-        if (cIdx === 0) {
-          isDeleting = false;
-          sIdx = (sIdx + 1) % samples.length;
-          outEl.textContent = "...";
-          setTimeout(loop, 400);
-          return;
-        }
-      }
-      setTimeout(loop, isDeleting ? 30 : 70);
-    }
-    loop();
-  </script>
 </body>
 </html>

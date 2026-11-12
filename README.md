@@ -1,91 +1,105 @@
+<div align="center">
+
+<img src="favicon.svg" width="88" height="88" alt="VRC-TransKey Logo" />
+
 # VRC-TransKey
 
-> 专为 **VRChat** 与 **SteamVR** 定制的轻量虚拟键盘与实时翻译小工具。  
-> An ultra-lightweight in-VR keyboard & real-time translation tool for VRChat & SteamVR.
+**为 VRChat 打造的 Spatial Cyber-Glass 空间悬浮中文拼音键盘 & 实时多语翻译终端**
+
+[![Release](https://img.shields.io/badge/Release-v1.3.0-38BDF8?style=flat-square)](https://github.com/2952151730-svg/vrc-transkey/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20%7C%20SteamVR%20%7C%20VD-8B5CF6?style=flat-square)](#)
+[![Lexicon](https://img.shields.io/badge/Lexicon-8,757%20单字%20%2B%2010万高频词-10B981?style=flat-square)](#)
+[![Website](https://img.shields.io/badge/Website-transkeyvr.top-0EA5E9?style=flat-square)](https://transkeyvr.top)
+
+[官网主页](https://transkeyvr.top) · [下载最新版本](https://github.com/2952151730-svg/vrc-transkey/releases) · [English](#english)
+
+</div>
 
 ---
 
-## 💡 背景与解决的问题
+## ✨ v1.3.0 核心更新
 
-在虚拟现实与跨语言社交场景中，文本交互普遍面临两大体验瓶颈：
-1. **空间输入体验欠佳**：主流 VR 虚拟键盘对中文拼音支持薄弱，选词繁琐且缺乏本地化词库；
-2. **切屏查词打断沉浸感**：在游戏内与外部翻译软件之间频繁切换，严重影响实时对话的流畅度。
-
-**TransKey VR** 致力于打造低延迟、无缝的空间输入与翻译工具：  
-用户在头显内输入时即可实时获得高质量双向译文预览，确认后通过本地 OSC 协议毫秒级同步至虚拟角色的 ChatBox，实现零干扰的跨语言沉浸交流。
-
----
-
-## 🌟 主要功能与特点
-
-- **打字即时翻译**：
-  - 拼音打字确认后，上方自动显示翻译预览。
-  - 支持发送纯译文、双语对照或纯中文原文。
-  - 支持 Google 翻译、Google Gemini、DeepSeek 及免翻备用接口。
-  - 海外直连与国内网络按需分流，开箱即用。
-
-- **深度中文输入与颜文字体验**：
-  - 深度内置 **37 万+ 离线高频中文词库**（370,262 词条），涵盖日常口语、游戏常用语与网络热梗，选词命中率极高。
-  - 支持拼音全拼与常用首字母简写（如 `wsm` ➔ `为什么`、`yyds`、`v50` 等）。
-  - 支持中英文初始输入模式自由切换，且支持在设置中一键切换**全软件中英双语界面**。
-  - 专属 **`(^_^)` 颜文字分类面板**：内置卖萌、开心、难过、对线、问候、日常等 6 大分类 72+ 款常用颜文字，全量经过 Windows 字库校验零方块乱码，原生完美支持 VRChat ChatBox 头顶文字气泡。
-
-- **轻量低占用**：
-  - 不采用笨重的浏览器内核架构，常驻内存仅约 30MB，极速秒开，不抢占游戏显存与帧率。
-
-- **贴合视线的空间工效学**：
-  - 呼出时默认位于头显前方略微下俯的位置，平视不挡朋友和镜子，低头即可舒适打字。
-  - 键盘顶部设置有抓取把手，按住手柄抓取键可在三维空间中随意拖拽移动、拉近推远或放置在身旁。
-  - 默认双击右手柄摇杆呼出/收起，可在设置中改为左手或其他按键。
-
-- **便捷小细节**：
-  - **常用语快捷板**：一键直发常用短语（如“在听稍等我在打字”、“AFK马上回”等，可在 `phrases.json` 自由修改）。
-  - **打字状态同步**：打字时 VRChat 角色头顶自动显示省略号 `...`，提示好友正在输入。
-  - **剪贴板一键粘贴**：电脑复制的文字可直接一键粘贴进输入框进行翻译。
+- **全新 Spatial Cyber-Glass 立体空间 UI**：重构整套渲染管线，采用深空玻璃拟态、3D 立体键帽层次、霓虹高光边框与动态状态指示，兼顾 VR 头显内的清晰度与视觉质感。
+- **双栏模块化控制中心**：设置界面重新规划为三大清晰页签——`翻译引擎`、`语言与输入`、`空间与引导`，常用开关与 API/模型配置一目了然。
+- **悬停与按压即时反馈**：新增射线悬停高亮发光、物理按压微移形变与顶部 Toast 状态提示，盲操与点选的手感更干脆。
+- **精简高频词库与内存优化**：
+  - 词库裁剪为 **8,757 个规范单字 + 近 10 万条核心高频词组**（共计 **103,886 词条**，源自雾凇词库精简），大幅减少冷门生僻字与长尾噪音对候选栏和内存的干扰。
+  - 限制低频混拼索引开销，**冷启动约 0.6 秒**，桌面预览专用内存降至 **~130 MB**（工作集 **~160 MB**），与主流轻量工具相当。
 
 ---
 
-## 🚀 启动与使用
+## 🚀 主要特性
 
-### 1. VR 模式（在 SteamVR 中使用）
-1. 启动 SteamVR 并戴上头显；
-2. 运行 `VRC-TransKey.exe`；
-3. 在 VR 中连按两次右手摇杆，键盘即会出现在眼前。
-
-### 2. 桌面预览模式（免头显测试）
-- 运行 `启动_桌面预览模式.bat` 即可在桌面上直接用鼠标测试打字、翻译与 OSC 发送。
+| 模块 | 能力说明 |
+| :--- | :--- |
+| **空间悬浮键盘** | 基于 OpenVR Overlay + PyQt6 + OpenGL 纹理直传，零闪烁高帧率跟随视角或固定在空间中，支持手柄/射线调节位置与缩放。 |
+| **本地中文拼音引擎** | 支持全拼、简拼、混拼、智能组词与本地自造词记忆（`data/user_dict.json`），8 栏全宽候选框配合翻页与内置 Emoji 表情面板。 |
+| **多引擎实时翻译** | 支持 **Google 免费翻译**、**MyMemory**、**DeepSeek AI**、**Google Gemini** 以及 **本地 Ollama**，支持 13 种目标语言一键切换与原文/双语对照发送。 |
+| **OSC 直连聊天框** | 通过标准 VRChat OSC 协议（`127.0.0.1:9000`）直达游戏内 Chatbox，支持自动输入状态（Typing Indicator）与自动/手动发送模式。 |
+| **VD / SteamVR 智能射线** | 针对 Virtual Desktop 与原生 SteamVR 环境做了控制器射线与悬停状态隔离，避免误触与穿模。 |
+| **无头显桌面预览** | 提供 `--desktop` 预览模式，可在不启动 SteamVR 的情况下直接测试输入、翻译与 UI 效果。 |
 
 ---
 
-## ⚙️ 配置文件 (`config.json`)
+## 📦 快速开始
 
-```json
-{
-  "translation": {
-    "network_mode": "global",       // "global"(海外直连) 或 "mainland"(中国大陆模式)
-    "engine": "free_direct",        // "free_direct", "google_gemini", "deepseek"
-    "target_lang": "en",            // 目标语言 (en, ja, ko, ru, fr, de)
-    "send_mode": "translated_only", // "translated_only"(纯英文), "bilingual"(双语), "original_only"(纯中文)
-    "google_api_key": "",           // 可选填入 Google Gemini API Key
-    "deepseek_api_key": "",         // 可选填入 DeepSeek API Key
-    "proxy": ""                     // 大陆模式下访问 Google 时的本地代理
-  }
-}
+### 方式一：直接运行发行版（推荐）
+1. 前往 [Releases 页面](https://github.com/2952151730-svg/vrc-transkey/releases) 下载 `VRC-TransKey.exe`。
+2. 在 VRChat 中开启 **OSC**（Action Menu → Options → OSC → Enabled）。
+3. 启动 SteamVR 后双击运行 `VRC-TransKey.exe`；若只想在电脑桌面体验界面与输入法，可同时下载 `启动_桌面预览模式.bat` 放在同一目录双击启动。
+
+> **关于自定义 AI 翻译**：在键盘右上角点击 `设置 (⚙)` → `翻译引擎` 即可切换引擎，或在软件同级 `config.json` 中填入 `deepseek_api_key` / `google_api_key`（本仓库默认留空，不包含任何私钥）。
+
+### 方式二：从源码运行
+```bash
+git clone https://github.com/2952151730-svg/vrc-transkey.git
+cd vrc-transkey
+python -m venv .venv
+.venv\Scripts\activate
+pip install PyQt6 PyOpenGL openvr python-osc requests
+```
+- VR 模式启动：`python main.py`
+- 桌面预览模式：`python main.py --desktop`（或运行 `启动_桌面预览模式.bat`）
+
+---
+
+## 📁 项目结构
+
+```text
+vrc-transkey/
+├── main.py                # 主程序状态机、键盘交互、OSC 与翻译调度
+├── ui_renderer.py         # Spatial Cyber-Glass 渲染器（键盘 / 设置中心 / Toast）
+├── vr_overlay.py          # OpenVR Overlay 管理、OpenGL 纹理同步与射线检测
+├── pinyin_engine.py       # 雾凇精简拼音引擎（全拼 / 简拼 / 混拼 / 用户词频学习）
+├── translator.py          # 多引擎异步翻译（Google / MyMemory / DeepSeek / Gemini / Ollama）
+├── osc_client.py          # VRChat OSC Chatbox 发送客户端
+├── config.json            # 运行时配置（引擎、语言、Overlay 位姿与键位设置）
+├── data/
+│   ├── base_dict.tsv      # 103,886 条核心词库（8,757 规范单字 + 10万高频词组）
+│   ├── emoji_pack.json    # 内置颜文字与 Emoji 面板数据
+│   └── user_dict.json     # 本地用户习惯词频（运行时自动更新）
+├── VRC-TransKey.spec      # PyInstaller 单文件打包配置
+└── 启动_桌面预览模式.bat   # 无 VR 头显一键桌面预览脚本
 ```
 
 ---
 
-## 🌐 English Summary
+<a id="english"></a>
 
-**VRC-TransKey** is a lightweight in-VR keyboard and real-time translation utility for **VRChat** and **SteamVR**.
+## 🌐 English Overview
 
-- **Instant Typing Translation**: Types Chinese via Pinyin and instantly displays translated previews before broadcasting via OSC to the VRChat ChatBox.
-- **Optimized Chinese IME & Kaomoji**: Embedded comprehensive 370k+ offline lexical dictionary (370,262 entries) with support for initial consonant abbreviations (e.g., `wsm` ➔ `为什么`), full bilingual English/Chinese UI localization, and a dedicated 6-category Kaomoji mood keyboard for VRChat ChatBox.
-- **Flexible Translation Providers**: Supports Google Translate, Google Gemini, and DeepSeek with global and local network routing.
-- **Ultra-Lightweight**: Minimal ~30MB memory footprint with no Chromium overhead.
-- **Natural Spatial Ergonomics**: Positioned below the direct line of sight; supports 6-DoF controller grab-and-drag.
+**VRC-TransKey** is a lightweight Spatial Cyber-Glass floating Chinese Pinyin keyboard and real-time multi-language translator built for **VRChat** on Windows (SteamVR / Virtual Desktop).
+
+### Highlights in v1.3.0
+- **Spatial Cyber-Glass UI**: Redesigned 3D glassmorphic keycaps, neon edge highlights, hover glow, physical press feedback, and top toast notifications.
+- **3-Tab Modular Control Center**: Organized settings for **Translation Engine**, **Language & Input**, and **Space & Guide**.
+- **Trimmed High-Frequency Lexicon & Memory Optimization**:
+  - Curated to **8,757 standard single characters + ~100k core high-frequency phrases** (**103,886 entries total**), cutting memory noise and improving candidate accuracy.
+  - Fast **~0.6s** cold start and reduced memory footprint (**~130 MB private / ~160 MB working set** in desktop preview).
+- **Multi-Engine Translation & Direct OSC**: Supports Google Free, MyMemory, DeepSeek, Google Gemini, and local Ollama across 13 target languages, sending directly to VRChat Chatbox via `127.0.0.1:9000`.
 
 ---
 
-## 📄 开源许可证
-本项目采用 [MIT License](LICENSE) 开源协议。
+## 📄 License
+
+Licensed under the [MIT License](LICENSE).

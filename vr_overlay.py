@@ -209,6 +209,7 @@ class VROverlayManager:
 
         # 激光瞄准与悬停状态
         self.last_hover_xy = (500, 280)
+        self.current_hover_xy: Optional[Tuple[int, int]] = None
         self.is_trigger_down_on_slider = False
 
         self.init_openvr()
@@ -962,6 +963,11 @@ class VROverlayManager:
                         self.is_trigger_down_on_slider = False
 
         # --- D. 更新或隐藏 3D 激光引导光束与表面发光准星 ---
+        if self.is_visible and not self.is_dragging and hit_candidate is not None:
+            self.current_hover_xy = (hit_candidate[2], hit_candidate[3])
+        else:
+            self.current_hover_xy = None
+
         should_render_laser = self._should_render_laser_guide()
         if self.is_visible and not self.is_dragging and hit_candidate is not None and should_render_laser:
             r_orig, h_pt, px, py, dev_idx = hit_candidate

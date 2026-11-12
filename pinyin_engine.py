@@ -126,9 +126,9 @@ class PinyinEngine:
                             break
 
         # 构建全方位多音节混拼索引 (全方位支持简全混拼：首字母+后全拼、前声母+末全拼、首全拼+后声母等)
-        # 针对前 ~70,000 高频常用词 (权重 >= 10,000) 建立极速混拼索引，兼顾 37 万全量收词与秒级极速冷启动
+        # 针对前 ~46,000 高频常用词 (权重 >= 20,000) 建立极速混拼索引，兼顾 10 万+ 核心收词与超低内存占用
         for word, full_py, jp, freq in t_entries:
-            if freq < 10000:
+            if freq < 20000:
                 continue
             if len(word) >= 2 and jp and len(jp) == len(word):
                 syls = self.split_syllables_by_jp(full_py, jp)
