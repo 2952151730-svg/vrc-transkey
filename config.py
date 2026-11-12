@@ -11,17 +11,10 @@ else:
 CONFIG_PATH = BASE_DIR / "config.json"
 PHRASES_PATH = BASE_DIR / "phrases.json"
 
-GOOGLE_VRC_PROMPT = (
-    "You are an expert real-time translator embedded inside a VRChat 3D VR virtual keyboard. "
-    "Translate the user's input into natural, concise, colloquial spoken target language suitable for VR socializing and gaming. "
-    "Preserve gamer jargon, anime context, internet slang, and casual emotional nuance. "
-    "Do NOT add explanations, quotation marks, or preamble. Return ONLY the translated sentence."
-)
-
 SOCIAL_SYSTEM_PROMPT = (
     "You are a friendly, natural, and polite translator for VRChat social chat. "
-    "Translate the user's Chinese input into natural, casual, and polite spoken target language suitable for chatting with strangers and making friends. "
-    "NEVER add profanity or rude intensifiers (such as 'what the hell', 'damn', or 'wtf') unless the source text explicitly swears. "
+    "Translate the user's input into natural, casual, and polite spoken target language suitable for chatting with strangers and making friends. "
+    "NEVER add profanity or rude intensifiers unless the source text explicitly swears. "
     "Output ONLY the translated sentence, without any preamble, markdown, or quotation marks."
 )
 
@@ -34,12 +27,11 @@ AGGRESSIVE_SYSTEM_PROMPT = (
 )
 
 PROMPT_PRESETS = {
-    "google_vrc": GOOGLE_VRC_PROMPT,
     "social": SOCIAL_SYSTEM_PROMPT,
     "aggressive": AGGRESSIVE_SYSTEM_PROMPT,
 }
 
-DEFAULT_SYSTEM_PROMPT = GOOGLE_VRC_PROMPT
+DEFAULT_SYSTEM_PROMPT = SOCIAL_SYSTEM_PROMPT
 
 DEFAULT_CONFIG = {
     "hotkey": {
@@ -68,24 +60,25 @@ DEFAULT_CONFIG = {
         "enabled": True,
         "engine": "google_official",    # "free_direct", "google_official", "google_gemini", "deepseek"
         "network_mode": "global",       # "global"(海外直连), "mainland"(中国用户/走代理)
-        "source_lang": "zh",            # 源语言: "zh", "en", "ja", "ko", "ru", "fr", "de"
-        "target_lang": "en",            # 目标语言: "en", "zh", "ja", "ko", "ru", "fr", "de"
+        "source_lang": "zh",            # 源语言: "zh", "en"
+        "target_lang": "en",            # 目标语言: "en", "zh"
         "proxy": "http://127.0.0.1:7890", # 本地代理端口
         "send_mode": "translated_only", # "translated_only"(纯译文), "bilingual"(双语), "original_only"(纯原文)
         "bilingual_format": "{original} ({translated})",
         "google_api_key": "",           # Google Gemini API Key
-        "google_model": "gemini-1.5-flash",
+        "google_model": "gemini-3.5-flash-lite", # 默认优先使用最新极速轻量模型
         "google_models_list": [
+            "gemini-3.5-flash-lite",
+            "gemini-2.5-flash-lite",
             "gemini-2.0-flash",
             "gemini-1.5-flash",
-            "gemini-1.5-pro",
-            "gemini-1.0-pro"
+            "gemini-1.5-pro"
         ],
         "deepseek_api_key": "",         # 填入 DeepSeek API Key
         "deepseek_base_url": "https://api.deepseek.com",
         "deepseek_model": "deepseek-chat",
-        "prompt_style": "google_vrc",
-        "system_prompt": GOOGLE_VRC_PROMPT
+        "prompt_style": "social",       # "social"(友好交流), "aggressive"(暴躁对线), "custom"(自定义)
+        "system_prompt": SOCIAL_SYSTEM_PROMPT
     }
 }
 
@@ -101,7 +94,6 @@ class Config:
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
-            # 递归合并缺省项
             cfg = DEFAULT_CONFIG.copy()
             for k, v in loaded.items():
                 if isinstance(v, dict) and k in cfg and isinstance(cfg[k], dict):

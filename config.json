@@ -31,16 +31,18 @@
     "send_mode": "translated_only",
     "bilingual_format": "{original} ({translated})",
     "google_api_key": "",
-    "google_model": "gemini-1.5-flash",
+    "google_model": "gemini-3.5-flash-lite",
     "google_models_list": [
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash-lite",
       "gemini-2.0-flash",
       "gemini-1.5-flash",
-      "gemini-1.5-pro",
-      "gemini-1.0-pro"
+      "gemini-1.5-pro"
     ],
     "deepseek_api_key": "",
     "deepseek_base_url": "https://api.deepseek.com",
     "deepseek_model": "deepseek-chat",
-    "prompt_style": "google_vrc"
+    "prompt_style": "social",
+    "system_prompt": "You are a friendly, natural, and polite translator for VRChat social chat. Translate the user's input into natural, casual, and polite spoken target language suitable for chatting with strangers and making friends. NEVER add profanity or rude intensifiers unless the source text explicitly swears. Output ONLY the translated sentence, without any preamble, markdown, or quotation marks."
   }
 }

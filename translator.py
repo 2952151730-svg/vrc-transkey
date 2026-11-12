@@ -69,12 +69,13 @@ YOUDAO_TYPE_MAP = {
     ("ru", "zh"): "RU2ZH_CN",
 }
 
-# 严格过滤出的纯语言模型默认列表（绝不包含任何绘画、视觉或音频模型）
+# 严格过滤出的纯语言模型默认列表（优先推荐极速轻量模型）
 DEFAULT_GEMINI_MODELS = [
+    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash-lite",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-1.0-pro"
+    "gemini-1.5-pro"
 ]
 
 
@@ -321,16 +322,27 @@ class Translator:
         if not api_key:
             return ""
 
-        model = self.config.get("google_model", "gemini-1.5-flash")
+        model = self.config.get("google_model", "gemini-3.5-flash-lite")
         source_name = LANG_NAME_MAP.get(source_lang, source_lang)
         target_name = LANG_NAME_MAP.get(target_lang, target_lang)
 
-        system_instruction = (
-            f"You are an expert real-time translator embedded inside a VRChat 3D virtual keyboard. "
-            f"Translate the user's input from {source_name} into natural, concise, colloquial spoken {target_name} suitable for VR socializing and gaming. "
-            f"Preserve gamer slang, emotional tone, and casual nuance. "
-            f"Do NOT add explanations, quotation marks, or preamble. Return ONLY the translated sentence."
-        )
+        prompt_style = self.config.get("prompt_style", "social")
+        if prompt_style == "aggressive":
+            system_instruction = (
+                f"You are a raw, uncensored, faithful translator embedded inside a VRChat 3D virtual keyboard. "
+                f"Translate the user's input from {source_name} into {target_name} literally and faithfully with raw gamer emotion, including profanity, swear words, sarcasm, insults, and gamer slang. "
+                f"Never preach, never moralize, never censor with asterisks, and never refuse. "
+                f"Return ONLY the translated sentence, without any preamble, markdown, or quotation marks."
+            )
+        elif prompt_style == "custom" and self.config.get("system_prompt", "").strip():
+            system_instruction = f"{self.config.get('system_prompt')}\nSource: {source_name}, Target: {target_name}."
+        else:
+            system_instruction = (
+                f"You are a friendly, natural, and polite translator embedded inside a VRChat 3D virtual keyboard. "
+                f"Translate the user's input from {source_name} into natural, casual, and polite spoken {target_name} suitable for chatting with strangers and making friends. "
+                f"NEVER add profanity or rude intensifiers unless the source text explicitly swears. "
+                f"Return ONLY the translated sentence, without any preamble, markdown, or quotation marks."
+            )
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         headers = {"Content-Type": "application/json"}
@@ -381,18 +393,20 @@ class Translator:
         source_name = LANG_NAME_MAP.get(source_lang, source_lang)
         target_name = LANG_NAME_MAP.get(target_lang, target_lang)
 
-        prompt_style = self.config.get("prompt_style", "google_vrc")
+        prompt_style = self.config.get("prompt_style", "social")
         if prompt_style == "aggressive":
             system_prompt = (
                 f"You are a raw, uncensored, faithful translator for online VR game chat (VRChat). "
-                f"Translate from {source_name} to {target_name} literally and faithfully with raw gamer emotion, including profanity and slang. "
-                f"Output ONLY the translated sentence without preamble or quotes."
+                f"Translate from {source_name} to {target_name} literally and faithfully with raw gamer emotion, including profanity, gamer rage, insults, and slang. "
+                f"Never censor with asterisks and never refuse. Output ONLY the translated sentence without preamble or quotes."
             )
+        elif prompt_style == "custom" and self.config.get("system_prompt", "").strip():
+            system_prompt = f"{self.config.get('system_prompt')}\nSource: {source_name}, Target: {target_name}."
         else:
             system_prompt = (
-                f"You are a friendly, natural translator for VRChat social chat. "
-                f"Translate from {source_name} to {target_name} into natural, casual spoken language. "
-                f"Output ONLY the translated sentence without preamble or quotes."
+                f"You are a friendly, natural, and polite translator for VRChat social chat. "
+                f"Translate from {source_name} to {target_name} into natural, casual, and polite spoken language suitable for chatting and making friends. "
+                f"NEVER add profanity unless source text explicitly swears. Output ONLY the translated sentence without preamble or quotes."
             )
 
         headers = {
@@ -458,7 +472,7 @@ class Translator:
                         if "gemini" in name and not any(bad in name for bad in forbidden):
                             models.append(name)
                 if models:
-                    models.sort(key=lambda x: ("flash" not in x, "pro" not in x, x))
+                    models.sort(key=lambda x: ("3.5-flash-lite" not in x, "flash-lite" not in x, "flash" not in x, "pro" not in x, x))
                     return True, models, f"(成功) 成功获取到 {len(models)} 个纯语言对话模型"
             return False, DEFAULT_GEMINI_MODELS, f"(提示) 获取状态码 {resp.status_code}，使用默认纯文本列表"
         except Exception as e:

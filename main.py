@@ -104,10 +104,11 @@ class VRCTransKeyApp:
             "engine": config.get("translation", "engine", default="google_official"),
             "network_mode": config.get("translation", "network_mode", default="global"),
             "google_api_key": config.get("translation", "google_api_key", default=""),
-            "google_model": config.get("translation", "google_model", default="gemini-1.5-flash"),
-            "google_models_list": config.get("translation", "google_models_list", default=["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]),
+            "google_model": config.get("translation", "google_model", default="gemini-3.5-flash-lite"),
+            "google_models_list": config.get("translation", "google_models_list", default=["gemini-3.5-flash-lite", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]),
             "deepseek_api_key": config.get("translation", "deepseek_api_key", default=""),
-            "prompt_style": config.get("translation", "prompt_style", default="google_vrc"),
+            "deepseek_model": config.get("translation", "deepseek_model", default="deepseek-chat"),
+            "prompt_style": config.get("translation", "prompt_style", default="social"),
             "system_prompt": config.get("translation", "system_prompt", default=DEFAULT_SYSTEM_PROMPT),
             "proxy": config.get("translation", "proxy", default="http://127.0.0.1:7890"),
             "overlay_width_m": config.get("overlay", "width_m", default=0.42),
@@ -276,39 +277,39 @@ class VRCTransKeyApp:
             self.osc.set_typing_status(False)
             return
 
-        elif action in ("cycle_lang_pair", "cycle_lang"):
-            pairs = [
-                ("zh", "en"), ("en", "zh"),
-                ("zh", "ja"), ("en", "ja"), ("ja", "zh"),
-                ("zh", "ko"), ("en", "ru")
-            ]
-            cur_pair = (self.state.get("source_lang", "zh"), self.state.get("target_lang", "en"))
-            idx = (pairs.index(cur_pair) + 1) % len(pairs) if cur_pair in pairs else 0
-            new_src, new_tgt = pairs[idx]
-            self.state["source_lang"] = new_src
-            self.state["target_lang"] = new_tgt
-            config.set(["translation", "source_lang"], new_src)
-            config.set(["translation", "target_lang"], new_tgt)
-            if new_src != "zh":
-                self.state["input_mode"] = "en"
-            else:
-                self.state["input_mode"] = "zh"
-            self.trigger_translation()
-
-        elif action == "swap_lang":
+        elif action in ("cycle_lang_pair", "cycle_lang", "swap_lang"):
             old_src = self.state.get("source_lang", "zh")
             old_tgt = self.state.get("target_lang", "en")
-            new_src, new_tgt = old_tgt, old_src
+            new_src = "en" if old_src == "zh" else "zh"
+            new_tgt = "zh" if new_src == "en" else "en"
             self.state["source_lang"] = new_src
             self.state["target_lang"] = new_tgt
             config.set(["translation", "source_lang"], new_src)
             config.set(["translation", "target_lang"], new_tgt)
-            if new_src != "zh":
-                self.state["input_mode"] = "en"
-            else:
+            if new_src == "zh":
                 self.state["input_mode"] = "zh"
-            lang_names = {"zh": "中文", "en": "英语", "ja": "日语", "ko": "韩语", "ru": "俄语"}
-            self.state["settings_tip"] = f"(成功) 语言已互换: {lang_names.get(new_src, new_src)} → {lang_names.get(new_tgt, new_tgt)}"
+            else:
+                self.state["input_mode"] = "en"
+            config.set(["input", "default_mode"], self.state["input_mode"])
+            src_name = "中文拼音" if new_src == "zh" else "英文直接"
+            tgt_name = "英文" if new_tgt == "en" else "中文"
+            self.state["settings_tip"] = f"(成功) 语言模式已切换为: 【{src_name} → {tgt_name}】"
+            self.trigger_translation()
+
+        elif action == "set_lang_pair":
+            src, tgt = data
+            self.state["source_lang"] = src
+            self.state["target_lang"] = tgt
+            config.set(["translation", "source_lang"], src)
+            config.set(["translation", "target_lang"], tgt)
+            if src == "zh":
+                self.state["input_mode"] = "zh"
+            else:
+                self.state["input_mode"] = "en"
+            config.set(["input", "default_mode"], self.state["input_mode"])
+            src_name = "中文拼音" if src == "zh" else "英文直接"
+            tgt_name = "英文" if tgt == "en" else "中文"
+            self.state["settings_tip"] = f"(成功) 语言模式已设为: 【{src_name} → {tgt_name}】"
             self.trigger_translation()
 
         elif action == "set_source_lang":
@@ -353,13 +354,23 @@ class VRCTransKeyApp:
             self.state["committed_text"] += char_to_insert
             self.trigger_translation()
 
-        elif action == "toggle_ime":
+        elif action in ("toggle_ime", "toggle_input_mode"):
             if self.state["pinyin_buffer"]:
                 self.state["committed_text"] += self.state["pinyin_buffer"]
                 self.state["pinyin_buffer"] = ""
                 self.update_candidates()
                 self.trigger_translation()
-            self.state["input_mode"] = "en" if self.state["input_mode"] == "zh" else "zh"
+            nxt_mode = "en" if self.state.get("input_mode", "zh") == "zh" else "zh"
+            self.state["input_mode"] = nxt_mode
+            config.set(["input", "default_mode"], nxt_mode)
+            new_src = "zh" if nxt_mode == "zh" else "en"
+            new_tgt = "en" if new_src == "zh" else "zh"
+            self.state["source_lang"] = new_src
+            self.state["target_lang"] = new_tgt
+            config.set(["translation", "source_lang"], new_src)
+            config.set(["translation", "target_lang"], new_tgt)
+            self.state["settings_tip"] = f"(成功) 输入模式已切换为: 【{'中文拼音 → 英文' if nxt_mode == 'zh' else '英文直接 → 中文'}】"
+            self.trigger_translation()
 
         elif action == "toggle_caps":
             self.state["is_caps"] = not self.state["is_caps"]
@@ -586,22 +597,52 @@ class VRCTransKeyApp:
             self.pinyin.save_user_dict()
             self.state["settings_tip"] = "(成功) 已重置个人输入法自适应词频记忆"
 
-        elif action == "paste_api_key":
+        elif action in ("paste_deepseek_key", "paste_api_key"):
             clip = get_clipboard_text().strip()
             if clip:
                 self.state["deepseek_api_key"] = clip
-                self.state["settings_tip"] = "(成功) API Key 已成功粘贴并保存！可点击右上角【测试翻译连接】验证"
+                self.state["settings_tip"] = "(成功) DeepSeek API Key 已成功粘贴并保存！可点击右上角【测试连接】验证"
                 config.set(["translation", "deepseek_api_key"], clip)
                 self.translator.update_config(config.get("translation"))
                 print(f"[Settings] DeepSeek API Key 已更新: {clip[:6]}...{clip[-4:] if len(clip) > 10 else ''}")
             else:
                 self.state["settings_tip"] = "提示：剪贴板为空，请先在网页复制 API Key"
 
-        elif action == "clear_api_key":
+        elif action in ("clear_deepseek_key", "clear_api_key"):
             self.state["deepseek_api_key"] = ""
-            self.state["settings_tip"] = "已清空 API Key"
+            self.state["settings_tip"] = "已清空 DeepSeek API Key"
             config.set(["translation", "deepseek_api_key"], "")
             self.translator.update_config(config.get("translation"))
+
+        elif action in ("cycle_deepseek_model", "cycle_ds_model"):
+            cur_m = self.state.get("deepseek_model", "deepseek-chat")
+            nxt_m = "deepseek-reasoner" if cur_m == "deepseek-chat" else "deepseek-chat"
+            self.state["deepseek_model"] = nxt_m
+            config.set(["translation", "deepseek_model"], nxt_m)
+            self.translator.update_config(config.get("translation"))
+            self.state["settings_tip"] = f"(成功) DeepSeek 模型已切换为: {nxt_m}"
+
+        elif action in ("toggle_prompt_style", "cycle_prompt_style"):
+            cur = self.state.get("prompt_style", "social")
+            if cur == "social":
+                nxt = "aggressive"
+                style_name = "暴躁粗口 (对线游戏)"
+                new_prompt = AGGRESSIVE_SYSTEM_PROMPT
+            elif cur == "aggressive":
+                nxt = "social"
+                style_name = "友好交流 (礼貌日常)"
+                new_prompt = SOCIAL_SYSTEM_PROMPT
+            else:
+                nxt = "social"
+                style_name = "友好交流 (礼貌日常)"
+                new_prompt = SOCIAL_SYSTEM_PROMPT
+            self.state["prompt_style"] = nxt
+            self.state["system_prompt"] = new_prompt
+            config.set(["translation", "prompt_style"], nxt)
+            config.set(["translation", "system_prompt"], new_prompt)
+            self.translator.update_config(config.get("translation"))
+            self.state["settings_tip"] = f"(成功) 口吻风格已切换为: 【{style_name}】"
+            self.trigger_translation()
 
         elif action == "set_prompt_style":
             style = str(data)
@@ -609,7 +650,7 @@ class VRCTransKeyApp:
                 new_prompt = PROMPT_PRESETS[style]
                 self.state["prompt_style"] = style
                 self.state["system_prompt"] = new_prompt
-                style_name = "日常友好社交 (礼貌自然)" if style == "social" else "暴躁对线 / 俚语强化 (喷人无审查)"
+                style_name = "友好交流 (礼貌日常)" if style == "social" else "暴躁粗口 (对线游戏)"
                 self.state["settings_tip"] = f"(成功) 已切换为【{style_name}】模式，实时生效！"
                 config.set(["translation", "prompt_style"], style)
                 config.set(["translation", "system_prompt"], new_prompt)
@@ -632,7 +673,7 @@ class VRCTransKeyApp:
         elif action == "reset_default_prompt":
             self.state["prompt_style"] = "social"
             self.state["system_prompt"] = SOCIAL_SYSTEM_PROMPT
-            self.state["settings_tip"] = "(成功) 已恢复默认【日常友好社交】提示词"
+            self.state["settings_tip"] = "(成功) 已恢复默认【友好交流】提示词"
             config.set(["translation", "prompt_style"], "social")
             config.set(["translation", "system_prompt"], SOCIAL_SYSTEM_PROMPT)
             self.translator.update_config(config.get("translation"))

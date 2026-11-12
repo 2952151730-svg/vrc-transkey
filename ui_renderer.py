@@ -552,16 +552,17 @@ class UIRenderer:
         self._draw_keycap(draw, r_dot, "。", font=self.font_key)
         self._add_button(r_dot, "insert_char", "。")
 
-        # 6. [中 / EN]
+        # 6. [中 → 英 / 英 → 中] 语言切换键
         r_ime = (744, y, 844, y + key_h)
-        ime_label = "中 / 英" if is_zh else "英 / 中"
+        cur_src = state.get("source_lang", "zh")
+        ime_label = "中 → 英" if cur_src == "zh" else "英 → 中"
         self._draw_keycap(
             draw, r_ime, ime_label, font=self.font_key_md,
-            fill=COLOR_PRIMARY_SOFT if is_zh else COLOR_KEY_FUNC,
-            border=COLOR_BORDER_ACTIVE if is_zh else COLOR_KEY_FUNC_BORDER,
-            text_color=COLOR_TEXT_ACCENT if is_zh else COLOR_TEXT_SUB
+            fill=COLOR_PRIMARY_SOFT if cur_src == "zh" else COLOR_KEY_FUNC,
+            border=COLOR_BORDER_ACTIVE if cur_src == "zh" else COLOR_KEY_FUNC_BORDER,
+            text_color=COLOR_TEXT_ACCENT if cur_src == "zh" else COLOR_TEXT_SUB
         )
-        self._add_button(r_ime, "toggle_input_mode")
+        self._add_button(r_ime, "swap_lang")
 
         # 7. [发送原文]
         r_send_orig = (854, y, WIDTH - 16, y + key_h)
@@ -865,14 +866,14 @@ class UIRenderer:
             self._draw_left_text(draw, 52, 344, "· 支持中文、英语、日语、韩语、俄语等任意语种双向互译，选词完毕毫秒级出译文。", self.font_key_sm, COLOR_TEXT_ACCENT)
 
         elif is_gemini:
-            self._draw_left_text(draw, 52, 230, "已启用【Google Gemini 纯语言大模型】", self.font_main, COLOR_TEXT_TRANS)
+            self._draw_left_text(draw, 52, 226, "已启用【Google Gemini 纯语言大模型】", self.font_main, COLOR_TEXT_TRANS)
 
             # Key 配置行
             g_key = state.get("google_api_key", "").strip()
             key_text = f"API Key: {g_key[:8]}...{g_key[-4:]}" if g_key else "API Key: 未配置 (请点击右侧按钮粘贴)"
-            self._draw_left_text(draw, 52, 268, key_text, self.font_key_md, COLOR_TEXT_MAIN if g_key else (255, 175, 80, 255))
+            self._draw_left_text(draw, 52, 258, key_text, self.font_key_md, COLOR_TEXT_MAIN if g_key else (255, 175, 80, 255))
 
-            g_paste_btn = (460, 248, 590, 286)
+            g_paste_btn = (460, 242, 590, 278)
             self._draw_keycap(
                 draw, g_paste_btn, "粘贴 Key", font=self.font_key_sm,
                 fill=COLOR_PRIMARY_SOFT, border=COLOR_PRIMARY_BORDER, text_color=COLOR_TEXT_ACCENT,
@@ -880,7 +881,7 @@ class UIRenderer:
             )
             self._add_button(g_paste_btn, "paste_google_key")
 
-            g_clear_btn = (600, 248, 700, 286)
+            g_clear_btn = (600, 242, 700, 278)
             self._draw_keycap(
                 draw, g_clear_btn, "清除 Key", font=self.font_key_sm,
                 fill=COLOR_KEY_FUNC, border=COLOR_KEY_FUNC_BORDER, text_color=COLOR_TEXT_MUTED,
@@ -888,11 +889,11 @@ class UIRenderer:
             )
             self._add_button(g_clear_btn, "clear_google_key")
 
-            # 模型选择行 (严格纯语言文本模型，杜绝绘画/视觉模型)
-            cur_model = state.get("google_model", "gemini-1.5-flash")
-            self._draw_left_text(draw, 52, 312, f"语言模型: {cur_model}", self.font_key_md, COLOR_TEXT_MAIN)
+            # 模型选择行
+            cur_model = state.get("google_model", "gemini-3.5-flash-lite")
+            self._draw_left_text(draw, 52, 298, f"语言模型: {cur_model}", self.font_key_md, COLOR_TEXT_MAIN)
 
-            g_cycle_btn = (330, 294, 520, 332)
+            g_cycle_btn = (330, 282, 510, 318)
             self._draw_keycap(
                 draw, g_cycle_btn, "切换纯语言模型", font=self.font_key_sm,
                 fill=COLOR_KEY, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
@@ -900,15 +901,42 @@ class UIRenderer:
             )
             self._add_button(g_cycle_btn, "cycle_gemini_model")
 
-            g_fetch_btn = (530, 294, 710, 332)
+            g_fetch_btn = (520, 282, 690, 318)
             self._draw_keycap(
-                draw, g_fetch_btn, "拉取纯语言模型", font=self.font_key_sm,
+                draw, g_fetch_btn, "拉取官方模型", font=self.font_key_sm,
                 fill=COLOR_KEY_FUNC, border=COLOR_BORDER, text_color=COLOR_TEXT_SUB,
                 radius=8, shadow=False
             )
             self._add_button(g_fetch_btn, "fetch_gemini_models")
 
-            self._draw_left_text(draw, 52, 350, "· 提示：已严格过滤掉所有绘画与视觉模型，仅保留高质量纯文本对话模型。", self.font_tiny, COLOR_TEXT_MUTED)
+            # 口吻风格行 (友好交流 vs 暴躁粗口 vs 自定义)
+            cur_style = state.get("prompt_style", "social")
+            style_name = "友好交流 (礼貌日常)" if cur_style == "social" else ("暴躁粗口 (对线游戏)" if cur_style == "aggressive" else "自定义提示词")
+            self._draw_left_text(draw, 52, 340, f"口吻风格: {style_name}", self.font_key_md, COLOR_TEXT_MAIN)
+
+            g_style_btn = (330, 324, 480, 360)
+            self._draw_keycap(
+                draw, g_style_btn, "切换口吻风格", font=self.font_key_sm,
+                fill=COLOR_KEY, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
+                radius=8, shadow=False
+            )
+            self._add_button(g_style_btn, "toggle_prompt_style")
+
+            g_custom_btn = (490, 324, 660, 360)
+            self._draw_keycap(
+                draw, g_custom_btn, "粘贴自定义提示词", font=self.font_key_sm,
+                fill=COLOR_KEY_FUNC, border=COLOR_BORDER, text_color=COLOR_TEXT_SUB,
+                radius=8, shadow=False
+            )
+            self._add_button(g_custom_btn, "paste_custom_prompt")
+
+            g_reset_btn = (670, 324, 780, 360)
+            self._draw_keycap(
+                draw, g_reset_btn, "恢复默认", font=self.font_key_sm,
+                fill=COLOR_KEY_FUNC, border=COLOR_BORDER, text_color=COLOR_TEXT_MUTED,
+                radius=8, shadow=False
+            )
+            self._add_button(g_reset_btn, "reset_default_prompt")
 
         elif is_free:
             self._draw_left_text(draw, 52, 230, "已启用【零门槛免费极速通道】", self.font_main, COLOR_TEXT_TRANS)
@@ -917,13 +945,13 @@ class UIRenderer:
             self._draw_left_text(draw, 52, 340, "· 适合无需大模型复杂推理、追求零门槛极速打字发话的用户。", self.font_key_sm, COLOR_TEXT_ACCENT)
 
         elif is_ds:
-            self._draw_left_text(draw, 52, 230, "已启用【DeepSeek 大模型口语化通道】", self.font_main, COLOR_TEXT_TRANS)
+            self._draw_left_text(draw, 52, 226, "已启用【DeepSeek 大模型口语化通道】", self.font_main, COLOR_TEXT_TRANS)
 
             ds_key = state.get("deepseek_api_key", "").strip()
             key_text = f"API Key: {ds_key[:8]}...{ds_key[-4:]}" if ds_key else "API Key: 未配置 (请点击右侧按钮粘贴)"
-            self._draw_left_text(draw, 52, 268, key_text, self.font_key_md, COLOR_TEXT_MAIN if ds_key else (255, 175, 80, 255))
+            self._draw_left_text(draw, 52, 258, key_text, self.font_key_md, COLOR_TEXT_MAIN if ds_key else (255, 175, 80, 255))
 
-            ds_paste_btn = (460, 248, 590, 286)
+            ds_paste_btn = (460, 242, 590, 278)
             self._draw_keycap(
                 draw, ds_paste_btn, "粘贴 Key", font=self.font_key_sm,
                 fill=COLOR_PRIMARY_SOFT, border=COLOR_PRIMARY_BORDER, text_color=COLOR_TEXT_ACCENT,
@@ -931,7 +959,7 @@ class UIRenderer:
             )
             self._add_button(ds_paste_btn, "paste_deepseek_key")
 
-            ds_clear_btn = (600, 248, 700, 286)
+            ds_clear_btn = (600, 242, 700, 278)
             self._draw_keycap(
                 draw, ds_clear_btn, "清除 Key", font=self.font_key_sm,
                 fill=COLOR_KEY_FUNC, border=COLOR_KEY_FUNC_BORDER, text_color=COLOR_TEXT_MUTED,
@@ -939,12 +967,24 @@ class UIRenderer:
             )
             self._add_button(ds_clear_btn, "clear_deepseek_key")
 
-            # 提示词风格切换
-            cur_style = state.get("prompt_style", "google_vrc")
-            style_name = "Google VRC 游戏专精" if cur_style == "google_vrc" else ("日常温和社交" if cur_style == "social" else "原汁原味对线")
-            self._draw_left_text(draw, 52, 312, f"口吻风格: {style_name}", self.font_key_md, COLOR_TEXT_MAIN)
+            # 模型显示
+            ds_model = state.get("deepseek_model", "deepseek-chat")
+            self._draw_left_text(draw, 52, 298, f"模型: {ds_model}", self.font_key_md, COLOR_TEXT_MAIN)
 
-            style_btn = (330, 294, 520, 332)
+            ds_model_btn = (330, 282, 510, 318)
+            self._draw_keycap(
+                draw, ds_model_btn, "切换模型", font=self.font_key_sm,
+                fill=COLOR_KEY, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
+                radius=8, shadow=False
+            )
+            self._add_button(ds_model_btn, "cycle_deepseek_model")
+
+            # 口吻风格行
+            cur_style = state.get("prompt_style", "social")
+            style_name = "友好交流 (礼貌日常)" if cur_style == "social" else ("暴躁粗口 (对线游戏)" if cur_style == "aggressive" else "自定义提示词")
+            self._draw_left_text(draw, 52, 340, f"口吻风格: {style_name}", self.font_key_md, COLOR_TEXT_MAIN)
+
+            style_btn = (330, 324, 480, 360)
             self._draw_keycap(
                 draw, style_btn, "切换口吻风格", font=self.font_key_sm,
                 fill=COLOR_KEY, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
@@ -952,60 +992,66 @@ class UIRenderer:
             )
             self._add_button(style_btn, "toggle_prompt_style")
 
-            self._draw_left_text(draw, 52, 350, "· 提示：国内直连 DeepSeek 官方 API，翻译口语化自然，理解中文游戏梗。", self.font_tiny, COLOR_TEXT_MUTED)
+            ds_custom_btn = (490, 324, 660, 360)
+            self._draw_keycap(
+                draw, ds_custom_btn, "粘贴自定义提示词", font=self.font_key_sm,
+                fill=COLOR_KEY_FUNC, border=COLOR_BORDER, text_color=COLOR_TEXT_SUB,
+                radius=8, shadow=False
+            )
+            self._add_button(ds_custom_btn, "paste_custom_prompt")
+
+            ds_reset_btn = (670, 324, 780, 360)
+            self._draw_keycap(
+                draw, ds_reset_btn, "恢复默认", font=self.font_key_sm,
+                fill=COLOR_KEY_FUNC, border=COLOR_BORDER, text_color=COLOR_TEXT_MUTED,
+                radius=8, shadow=False
+            )
+            self._add_button(ds_reset_btn, "reset_default_prompt")
 
         # ------------------------------------------------------------------
-        # 双向语言选择区域 (y: 388..472)：源语言 + 互换 + 目标语言
+        # 双向语言选择区域 (y: 388..472)：专注中英双向，清爽无遮挡
         # ------------------------------------------------------------------
         draw.line([(32, 386), (WIDTH - 32, 386)], fill=COLOR_DIVIDER, width=1)
 
         cur_src = state.get("source_lang", "zh")
         cur_tgt = state.get("target_lang", "en")
+        is_zh2en = (cur_src == "zh" and cur_tgt == "en")
+        is_en2zh = (cur_src == "en" and cur_tgt == "zh")
 
-        self._draw_left_text(draw, 40, 412, "输入原文:", self.font_key_sm, COLOR_TEXT_SUB)
+        self._draw_left_text(draw, 40, 430, "语言互译模式:", self.font_key_md, COLOR_TEXT_MAIN)
 
-        src_langs = [("zh", "中文"), ("en", "英语"), ("ja", "日语"), ("ko", "韩语")]
-        sx = 120
-        for code, name in src_langs:
-            btn_w = 72
-            rect = (sx, 396, sx + btn_w, 428)
-            is_active = (cur_src == code)
-            self._draw_keycap(
-                draw, rect, f"● {name}" if is_active else name, font=self.font_key_sm,
-                fill=COLOR_PRIMARY if is_active else COLOR_KEY_FUNC,
-                border=COLOR_PRIMARY_BORDER if is_active else COLOR_KEY_FUNC_BORDER,
-                text_color=(255, 255, 255, 255) if is_active else COLOR_TEXT_SUB,
-                radius=7, shadow=False
-            )
-            self._add_button(rect, "set_source_lang", code)
-            sx += btn_w + 8
-
-        # 快速互换按钮 [ 一键互换 ]
-        swap_btn = (460, 408, 560, 452)
+        # 选项 1: 中文拼音 -> 英语
+        btn_zh2en = (160, 408, 430, 452)
         self._draw_keycap(
-            draw, swap_btn, "一键互换", font=self.font_key_md,
+            draw, btn_zh2en, "● 中文拼音 → 英语 (中→英)" if is_zh2en else "中文拼音 → 英语 (中→英)",
+            font=self.font_key_sm,
+            fill=COLOR_PRIMARY if is_zh2en else COLOR_KEY,
+            border=COLOR_PRIMARY_BORDER if is_zh2en else COLOR_BORDER,
+            text_color=(255, 255, 255, 255) if is_zh2en else COLOR_TEXT_SUB,
+            radius=8, shadow=False
+        )
+        self._add_button(btn_zh2en, "set_lang_pair", ("zh", "en"))
+
+        # 选项 2: 英文直接 -> 中文
+        btn_en2zh = (444, 408, 714, 452)
+        self._draw_keycap(
+            draw, btn_en2zh, "● 英文直接 → 中文 (英→中)" if is_en2zh else "英文直接 → 中文 (英→中)",
+            font=self.font_key_sm,
+            fill=COLOR_PRIMARY if is_en2zh else COLOR_KEY,
+            border=COLOR_PRIMARY_BORDER if is_en2zh else COLOR_BORDER,
+            text_color=(255, 255, 255, 255) if is_en2zh else COLOR_TEXT_SUB,
+            radius=8, shadow=False
+        )
+        self._add_button(btn_en2zh, "set_lang_pair", ("en", "zh"))
+
+        # 选项 3: 一键互换中英
+        swap_btn = (728, 408, 888, 452)
+        self._draw_keycap(
+            draw, swap_btn, "一键互换中英", font=self.font_key_sm,
             fill=COLOR_PRIMARY_SOFT, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
             radius=8, shadow=False
         )
         self._add_button(swap_btn, "swap_lang")
-
-        self._draw_left_text(draw, 40, 448, "目标译文:", self.font_key_sm, COLOR_TEXT_SUB)
-
-        tgt_langs = [("en", "英语"), ("zh", "中文"), ("ja", "日语"), ("ko", "韩语"), ("ru", "俄语")]
-        tx = 120
-        for code, name in tgt_langs:
-            btn_w = 64
-            rect = (tx, 434, tx + btn_w, 466)
-            is_active = (cur_tgt == code)
-            self._draw_keycap(
-                draw, rect, f"● {name}" if is_active else name, font=self.font_tiny,
-                fill=COLOR_PRIMARY if is_active else COLOR_KEY_FUNC,
-                border=COLOR_PRIMARY_BORDER if is_active else COLOR_KEY_FUNC_BORDER,
-                text_color=(255, 255, 255, 255) if is_active else COLOR_TEXT_SUB,
-                radius=7, shadow=False
-            )
-            self._add_button(rect, "set_target_lang", code)
-            tx += btn_w + 6
 
         # ------------------------------------------------------------------
         # 底部控制栏 (y: 480..536)
