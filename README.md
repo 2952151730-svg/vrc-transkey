@@ -24,10 +24,11 @@
   - 支持 Google 翻译、Google Gemini、DeepSeek 及免翻备用接口。
   - 海外直连与国内网络按需分流，开箱即用。
 
-- **深度中文输入体验**：
-  - 内置丰富的高频日常词库，选词命中率高。
-  - 支持全拼与常用拼音首字母简写（如 `wsm` ➔ `为什么`、`yyds`、`v50` 等）。
-  - 支持中英文初始输入模式自由切换。
+- **深度中文输入与颜文字体验**：
+  - 深度内置 **37 万+ 离线高频中文词库**（370,262 词条），涵盖日常口语、游戏常用语与网络热梗，选词命中率极高。
+  - 支持拼音全拼与常用首字母简写（如 `wsm` ➔ `为什么`、`yyds`、`v50` 等）。
+  - 支持中英文初始输入模式自由切换，且支持在设置中一键切换**全软件中英双语界面**。
+  - 专属 **`(^_^)` 颜文字分类面板**：内置卖萌、开心、难过、对线、问候、日常等 6 大分类 72+ 款常用颜文字，全量经过 Windows 字库校验零方块乱码，原生完美支持 VRChat ChatBox 头顶文字气泡。
 
 - **轻量低占用**：
   - 不采用笨重的浏览器内核架构，常驻内存仅约 30MB，极速秒开，不抢占游戏显存与帧率。
@@ -79,7 +80,7 @@
 **VRC-TransKey** is a lightweight in-VR keyboard and real-time translation utility for **VRChat** and **SteamVR**.
 
 - **Instant Typing Translation**: Types Chinese via Pinyin and instantly displays translated previews before broadcasting via OSC to the VRChat ChatBox.
-- **Optimized Chinese IME**: Embedded comprehensive lexical dictionary with support for initial consonant abbreviations (e.g., `wsm` ➔ `为什么`).
+- **Optimized Chinese IME & Kaomoji**: Embedded comprehensive 370k+ offline lexical dictionary (370,262 entries) with support for initial consonant abbreviations (e.g., `wsm` ➔ `为什么`), full bilingual English/Chinese UI localization, and a dedicated 6-category Kaomoji mood keyboard for VRChat ChatBox.
 - **Flexible Translation Providers**: Supports Google Translate, Google Gemini, and DeepSeek with global and local network routing.
 - **Ultra-Lightweight**: Minimal ~30MB memory footprint with no Chromium overhead.
 - **Natural Spatial Ergonomics**: Positioned below the direct line of sight; supports 6-DoF controller grab-and-drag.
