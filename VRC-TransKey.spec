@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('E:/vrc-transkey/data', 'data'), ('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', 'openvr')]
+datas = [('E:/vrc-transkey/data', 'data'), ('E:/vrc-transkey/favicon.ico', '.'), ('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', 'openvr')]
 binaries = [('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', 'openvr'), ('E:/vrc-transkey/.venv/Lib/site-packages/openvr/libopenvr_api_64.dll', '.')]
 hiddenimports = []
 tmp_ret = collect_all('openvr')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_pa = collect_all('pyaudiowpatch')
+datas += tmp_pa[0]; binaries += tmp_pa[1]; hiddenimports += tmp_pa[2]
 
 
 a = Analysis(
@@ -37,6 +39,7 @@ exe = EXE(
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
+    icon='E:/vrc-transkey/favicon.ico',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

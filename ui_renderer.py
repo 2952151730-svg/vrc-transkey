@@ -1157,37 +1157,40 @@ class UIRenderer:
             ("engine", self._t(state, "tab_engine", "翻译引擎"), self._t(state, "tab_engine_sub", "通道 · 代理 · 口吻")),
             ("input", self._t(state, "tab_input", "语言与输入"), self._t(state, "tab_input_sub", "互译 · 发送 · 词库")),
             ("vr", self._t(state, "tab_vr", "空间与引导"), self._t(state, "tab_vr_sub", "尺寸 · 激光 · 热键")),
+            ("voice", self._t(state, "tab_voice", "语音与HUD"), self._t(state, "tab_voice_sub", "听写 · 字幕 · 挂载")),
         ]
         ty = 138
         for tab_id, t_title, t_sub in tabs:
-            t_rect = (28, ty, 212, ty + 70)
+            t_rect = (28, ty, 212, ty + 56)
             is_act = (cur_tab == tab_id)
             is_hov = (self._hover_rect == t_rect)
             bg = COLOR_PRIMARY_SOFT if is_act else (_shift_color(COLOR_SURFACE_INNER, 10) if is_hov else COLOR_SURFACE_INNER)
             bd = COLOR_BORDER_ACTIVE if (is_act or is_hov) else COLOR_BORDER
             draw.rounded_rectangle(t_rect, radius=11, fill=bg, outline=bd, width=2 if is_act else 1)
             if is_act:
-                draw.rounded_rectangle((32, ty + 14, 37, ty + 56), radius=2, fill=COLOR_BORDER_ACTIVE)
-            self._draw_left_text(draw, 48, ty + 24, t_title, self.font_key_md, (255, 255, 255, 255) if is_act else COLOR_TEXT_MAIN)
-            self._draw_left_text(draw, 48, ty + 49, t_sub, self.font_tiny, COLOR_TEXT_ACCENT if is_act else COLOR_TEXT_MUTED)
+                draw.rounded_rectangle((32, ty + 11, 37, ty + 45), radius=2, fill=COLOR_BORDER_ACTIVE)
+            self._draw_left_text(draw, 48, ty + 19, t_title, self.font_key_md, (255, 255, 255, 255) if is_act else COLOR_TEXT_MAIN)
+            self._draw_left_text(draw, 48, ty + 41, t_sub, self.font_tiny, COLOR_TEXT_ACCENT if is_act else COLOR_TEXT_MUTED)
             self._add_button(t_rect, "set_settings_tab", tab_id)
-            ty += 80
+            ty += 64
 
         # 左侧底部运行状态卡片
-        stat_rect = (28, 386, 212, 486)
+        stat_rect = (28, 400, 212, 486)
         draw.rounded_rectangle(stat_rect, radius=11, fill=COLOR_SURFACE_INNER, outline=COLOR_DIVIDER)
         is_vd = state.get("is_vd_active", False)
         env_txt = "VD 串流" if is_vd else "SteamVR / 桌面"
-        self._draw_left_text(draw, 42, 408, "运行状态" if ui_lang == "zh" else "Runtime", self.font_tiny, COLOR_TEXT_MUTED)
-        draw.ellipse((42, 429, 49, 436), fill=COLOR_SUCCESS_BORDER)
-        self._draw_left_text(draw, 56, 433, env_txt, self.font_key_sm, COLOR_TEXT_SUB)
-        self._draw_left_text(draw, 42, 462, "词库: 10万+ 雾凇" if ui_lang == "zh" else "Dict: 100k+ Ice", self.font_tiny, COLOR_TEXT_ACCENT)
+        self._draw_left_text(draw, 42, 418, "运行状态" if ui_lang == "zh" else "Runtime", self.font_tiny, COLOR_TEXT_MUTED)
+        draw.ellipse((42, 439, 49, 446), fill=COLOR_SUCCESS_BORDER)
+        self._draw_left_text(draw, 56, 443, env_txt, self.font_key_sm, COLOR_TEXT_SUB)
+        self._draw_left_text(draw, 42, 468, "词库: 10万+ 雾凇" if ui_lang == "zh" else "Dict: 100k+ Ice", self.font_tiny, COLOR_TEXT_ACCENT)
 
         # 3. 右侧内容区 (x: 226..968, y: 138..486)
         if cur_tab == "engine":
             self._render_settings_tab_engine(draw, state)
         elif cur_tab == "input":
             self._render_settings_tab_input(draw, state)
+        elif cur_tab == "voice":
+            self._render_settings_tab_voice(draw, state)
         else:
             self._render_settings_tab_vr(draw, state)
 
@@ -1460,3 +1463,215 @@ class UIRenderer:
 
         guide_txt = "操作说明：食指扳机 Trigger 点击 · 中指握把 Grip 任意拖拽移动" if ui_lang == "zh" else "Controls: Trigger to Click · Grip anywhere to Drag"
         self._draw_left_text(draw, 580, 437, guide_txt, self.font_tiny, COLOR_TEXT_SUB)
+
+    def _render_settings_tab_voice(self, draw: ImageDraw.Draw, state: dict):
+        ui_lang = state.get("ui_lang", "zh")
+
+        # 区块 1: 双路语音开关与识别引擎 (y: 138..224)
+        draw.rounded_rectangle((226, 138, 968, 224), radius=12, fill=COLOR_SURFACE_INNER, outline=COLOR_BORDER)
+        mic_on = state.get("voice_mic_enabled", False)
+        loop_on = state.get("voice_loopback_enabled", False)
+        stt_eng = state.get("voice_stt_engine", "gemini")
+
+        b_mic = (240, 148, 430, 182)
+        self._draw_keycap(
+            draw, b_mic, ("● 自己语音直发: 开" if mic_on else "○ 自己语音直发: 关") if ui_lang == "zh" else ("● Mic Send: ON" if mic_on else "○ Mic Send: OFF"),
+            font=self.font_tiny,
+            fill=COLOR_SUCCESS if mic_on else COLOR_KEY,
+            border=COLOR_SUCCESS_BORDER if mic_on else COLOR_KEY_BORDER,
+            text_color=(255, 255, 255, 255) if mic_on else COLOR_TEXT_SUB,
+            radius=8, shadow=False
+        )
+        self._add_button(b_mic, "toggle_voice_mic")
+
+        b_loop = (440, 148, 652, 182)
+        self._draw_keycap(
+            draw, b_loop, ("● 游戏语音HUD: 开" if loop_on else "○ 游戏语音HUD: 关") if ui_lang == "zh" else ("● Game Voice HUD: ON" if loop_on else "○ Game Voice HUD: OFF"),
+            font=self.font_tiny,
+            fill=COLOR_SUCCESS if loop_on else COLOR_KEY,
+            border=COLOR_SUCCESS_BORDER if loop_on else COLOR_KEY_BORDER,
+            text_color=(255, 255, 255, 255) if loop_on else COLOR_TEXT_SUB,
+            radius=8, shadow=False
+        )
+        self._add_button(b_loop, "toggle_voice_loopback")
+
+        # 右上角引擎辅助按钮
+        if stt_eng == "groq":
+            has_gkey = bool(state.get("groq_key_set", False))
+            b_aux = (662, 148, 954, 182)
+            aux_txt = ("粘贴 Groq Key (已配置)" if has_gkey else "粘贴 Groq Key (未填)") if ui_lang == "zh" else ("Paste Groq Key (Set)" if has_gkey else "Paste Groq Key")
+            self._draw_keycap(
+                draw, b_aux, aux_txt, font=self.font_tiny,
+                fill=COLOR_PRIMARY_SOFT if has_gkey else COLOR_WARNING_SOFT,
+                border=COLOR_BORDER_ACTIVE if has_gkey else COLOR_WARNING,
+                text_color=COLOR_TEXT_ACCENT if has_gkey else (255, 210, 120, 255),
+                radius=8, shadow=False
+            )
+            self._add_button(b_aux, "paste_groq_key")
+        elif stt_eng == "google_free":
+            b_aux = (662, 148, 954, 182)
+            olang = state.get("voice_other_source_lang", "en-US")
+            self._draw_keycap(
+                draw, b_aux, f"对方语种(免Key): {olang}" if ui_lang == "zh" else f"Listen Lang: {olang}",
+                font=self.font_tiny, fill=COLOR_PRIMARY_SOFT, border=COLOR_BORDER_ACTIVE,
+                text_color=COLOR_TEXT_ACCENT, radius=8, shadow=False
+            )
+            self._add_button(b_aux, "cycle_other_src_lang")
+        else:
+            has_gem = bool(state.get("google_key_set", False))
+            b_aux = (662, 148, 954, 182)
+            aux_txt = ("Gemini Key 已就绪 (自动多语)" if has_gem else "需先在【翻译引擎】填 Gemini Key") if ui_lang == "zh" else ("Gemini Key Ready" if has_gem else "Set Gemini Key in Engine Tab")
+            self._draw_keycap(
+                draw, b_aux, aux_txt, font=self.font_tiny,
+                fill=COLOR_PRIMARY_SOFT if has_gem else COLOR_WARNING_SOFT,
+                border=COLOR_BORDER_ACTIVE if has_gem else COLOR_WARNING,
+                text_color=COLOR_TEXT_ACCENT if has_gem else (255, 210, 120, 255),
+                radius=8, shadow=False
+            )
+            self._add_button(b_aux, "set_settings_tab", "engine")
+
+        # 识别引擎三选一 (y: 188..216)
+        eng_opts = [
+            ("gemini", "Gemini 多模态(最准/便宜)", (240, 188, 480, 216)),
+            ("groq", "Groq Whisper(免费高额)", (490, 188, 720, 216)),
+            ("google_free", "Google 免Key(单语)", (730, 188, 954, 216)),
+        ]
+        for eid, elbl, er in eng_opts:
+            is_act = (stt_eng == eid)
+            self._draw_keycap(
+                draw, er, ("● " if is_act else "") + elbl, font=self.font_tiny,
+                fill=COLOR_PRIMARY if is_act else COLOR_KEY,
+                border=COLOR_PRIMARY_BORDER if is_act else COLOR_KEY_BORDER,
+                text_color=(255, 255, 255, 255) if is_act else COLOR_TEXT_SUB,
+                radius=7, shadow=False
+            )
+            self._add_button(er, "set_stt_engine", eid)
+
+        # 区块 2: HUD 挂载位置、译文语言与显示时长 (y: 232..312)
+        draw.rounded_rectangle((226, 232, 968, 312), radius=12, fill=COLOR_SURFACE_INNER, outline=COLOR_BORDER)
+        anchor = state.get("hud_anchor", "hmd")
+        anchor_opts = [
+            ("hmd", "头显抬头 HUD", (240, 242, 396, 274)),
+            ("left", "绑定左手", (404, 242, 514, 274)),
+            ("right", "绑定右手", (522, 242, 632, 274)),
+        ]
+        for aid, albl, ar in anchor_opts:
+            is_act = (anchor == aid)
+            self._draw_keycap(
+                draw, ar, ("● " if is_act else "") + albl, font=self.font_tiny,
+                fill=COLOR_PRIMARY if is_act else COLOR_KEY,
+                border=COLOR_PRIMARY_BORDER if is_act else COLOR_KEY_BORDER,
+                text_color=(255, 255, 255, 255) if is_act else COLOR_TEXT_SUB,
+                radius=8, shadow=False
+            )
+            self._add_button(ar, "set_hud_anchor", aid)
+
+        hud_tgt = state.get("hud_target_lang", "zh")
+        tgt_names = {"zh": "简体中文", "en": "English", "ja": "日本語", "ko": "한국어", "zh-TW": "繁體中文"}
+        b_htgt = (644, 242, 816, 274)
+        self._draw_keycap(
+            draw, b_htgt, f"HUD译成: {tgt_names.get(hud_tgt, hud_tgt)}", font=self.font_tiny,
+            fill=COLOR_PRIMARY_SOFT, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT, radius=8, shadow=False
+        )
+        self._add_button(b_htgt, "cycle_hud_target_lang")
+
+        hud_dur = float(state.get("hud_duration_s", 6.0))
+        b_hdur = (824, 242, 954, 274)
+        self._draw_keycap(
+            draw, b_hdur, f"停留: {int(hud_dur)}秒", font=self.font_tiny,
+            fill=COLOR_KEY, border=COLOR_KEY_BORDER, text_color=COLOR_TEXT_MAIN, radius=8, shadow=False
+        )
+        self._add_button(b_hdur, "cycle_hud_duration")
+
+        # 辅助选项行 (y: 280..306)
+        sens = state.get("vad_sensitivity", "medium")
+        sens_lbl = {"low": "灵敏(安静)", "medium": "标准", "high": "抗噪(高门限)"}.get(sens, "标准")
+        b_sens = (240, 279, 444, 306)
+        self._draw_keycap(draw, b_sens, f"收音门限: {sens_lbl}", font=self.font_tiny, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=7, shadow=False)
+        self._add_button(b_sens, "cycle_vad_sensitivity")
+
+        smode = state.get("voice_self_send_mode", "direct")
+        b_smode = (454, 279, 646, 306)
+        self._draw_keycap(
+            draw, b_smode, "自己语音: 直接发送" if smode == "direct" else "自己语音: 填入输入框",
+            font=self.font_tiny, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=7, shadow=False
+        )
+        self._add_button(b_smode, "toggle_self_send_mode")
+
+        show_orig = state.get("hud_show_original", True)
+        b_horig = (656, 279, 824, 306)
+        self._draw_keycap(
+            draw, b_horig, "HUD: 原文+译文" if show_orig else "HUD: 仅显示译文",
+            font=self.font_tiny, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=7, shadow=False
+        )
+        self._add_button(b_horig, "toggle_hud_original")
+
+        b_htest = (834, 279, 954, 306)
+        self._draw_keycap(
+            draw, b_htest, "测试 HUD", font=self.font_tiny,
+            fill=COLOR_SUCCESS_SOFT, border=COLOR_SUCCESS_BORDER, text_color=COLOR_TEXT_TRANS, radius=7, shadow=False
+        )
+        self._add_button(b_htest, "test_voice_hud")
+
+        # 区块 3: HUD 大小、远近与高低调节 (y: 320..486)
+        draw.rounded_rectangle((226, 320, 968, 486), radius=12, fill=COLOR_SURFACE_INNER, outline=COLOR_BORDER)
+        hw = float(state.get("hud_width_m", 0.48))
+        hd = float(state.get("hud_distance_m", 1.25))
+        hy = float(state.get("hud_y_offset_m", -0.18))
+
+        self._draw_left_text(draw, 242, 344, f"HUD 大小 (宽度): {hw:.2f} 米", self.font_key_sm, COLOR_TEXT_ACCENT)
+        self._draw_keycap(draw, (650, 328, 792, 362), "- 缩小", font=self.font_key_sm, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=8, shadow=False)
+        self._add_button((650, 328, 792, 362), "adjust_hud_width", -0.05)
+        self._draw_keycap(draw, (804, 328, 948, 362), "+ 放大", font=self.font_key_sm, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=8, shadow=False)
+        self._add_button((804, 328, 948, 362), "adjust_hud_width", 0.05)
+
+        self._draw_left_text(draw, 242, 398, f"HUD 远近 (距离): {hd:.2f} 米", self.font_key_sm, COLOR_TEXT_ACCENT)
+        b_hreset = (486, 382, 634, 416)
+        self._draw_keycap(
+            draw, b_hreset, "重置默认", font=self.font_key_sm,
+            fill=COLOR_PRIMARY_SOFT, border=COLOR_BORDER_ACTIVE, text_color=COLOR_TEXT_ACCENT,
+            radius=8, shadow=False
+        )
+        self._add_button(b_hreset, "reset_hud_pose")
+        self._draw_keycap(draw, (650, 382, 792, 416), "- 拉近", font=self.font_key_sm, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=8, shadow=False)
+        self._add_button((650, 382, 792, 416), "adjust_hud_distance", -0.15)
+        self._draw_keycap(draw, (804, 382, 948, 416), "+ 推远", font=self.font_key_sm, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=8, shadow=False)
+        self._add_button((804, 382, 948, 416), "adjust_hud_distance", 0.15)
+
+        self._draw_left_text(draw, 242, 452, f"HUD 上下偏移: {hy:+.2f} 米", self.font_key_sm, COLOR_TEXT_ACCENT)
+        self._draw_keycap(draw, (650, 436, 792, 470), "↓ 往下", font=self.font_key_sm, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=8, shadow=False)
+        self._add_button((650, 436, 792, 470), "adjust_hud_y", -0.04)
+        self._draw_keycap(draw, (804, 436, 948, 470), "↑ 往上", font=self.font_key_sm, fill=COLOR_KEY, border=COLOR_KEY_BORDER, radius=8, shadow=False)
+        self._add_button((804, 436, 948, 470), "adjust_hud_y", 0.04)
+
+    def render_hud(self, hud_state: dict) -> Image.Image:
+        """渲染 800x180 空间半透明抬头显示字幕条 (HUD Overlay)"""
+        w, h = 800, 180
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        speaker = hud_state.get("speaker", "other")  # "self" | "other"
+        orig = (hud_state.get("original") or "").strip()
+        trans = (hud_state.get("translated") or "").strip()
+        show_orig = hud_state.get("show_original", True)
+
+        # 玻璃拟态底板
+        bd_col = (56, 189, 248, 190) if speaker == "other" else (52, 211, 153, 190)
+        draw.rounded_rectangle((8, 8, w - 8, h - 8), radius=18, fill=(10, 16, 30, 205), outline=bd_col, width=2)
+
+        # 说话人徽章
+        badge_txt = "游戏语音译文" if speaker == "other" else "我的语音"
+        badge_bg = (14, 165, 233, 210) if speaker == "other" else (16, 185, 129, 210)
+        draw.rounded_rectangle((24, 22, 164, 52), radius=8, fill=badge_bg)
+        self._draw_centered_text(draw, (24, 22, 164, 52), badge_txt, self.font_tiny, (255, 255, 255, 255))
+
+        if show_orig and orig and orig != trans:
+            orig_fit = self._truncate_left_to_fit(orig, self.font_key_sm, w - 210)
+            self._draw_left_text(draw, 180, 37, orig_fit, self.font_key_sm, COLOR_TEXT_MUTED)
+            trans_fit = self._truncate_left_to_fit(trans, self.font_main, w - 56)
+            self._draw_left_text(draw, 28, 108, trans_fit, self.font_main, (240, 249, 255, 255))
+        else:
+            trans_fit = self._truncate_left_to_fit(trans or orig, self.font_main, w - 56)
+            self._draw_left_text(draw, 28, 104, trans_fit, self.font_main, (240, 249, 255, 255))
+
+        return img

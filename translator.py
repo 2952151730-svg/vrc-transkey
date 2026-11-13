@@ -8,6 +8,7 @@ import urllib.parse
 
 # 语言名称映射表
 LANG_NAME_MAP = {
+    "auto": "自动检测语言",
     "zh": "中文",
     "en": "英语",
     "ja": "日语",
@@ -87,6 +88,10 @@ class Translator:
         self.session = requests.Session()
         self._req_seq = 0
         self.is_translating = False
+        self._pending_req = None
+        self._worker_event = threading.Event()
+        self._worker_thread = threading.Thread(target=self._async_worker, daemon=True)
+        self._worker_thread.start()
 
     def update_config(self, config_dict: dict):
         with self.lock:
@@ -153,6 +158,11 @@ class Translator:
             result = text
 
         with self.lock:
+            if len(self.cache) >= 500:
+                try:
+                    self.cache.pop(next(iter(self.cache)))
+                except StopIteration:
+                    pass
             self.cache[cache_key] = result
         return result
 
@@ -163,27 +173,47 @@ class Translator:
                 return True
         return False
 
+    def _async_worker(self):
+        """单工作线程处理防抖翻译请求，彻底避免多线并发堆积与 Session 锁死"""
+        while True:
+            self._worker_event.wait()
+            while True:
+                with self.lock:
+                    req = self._pending_req
+                    if req is None:
+                        self._worker_event.clear()
+                        break
+                    my_seq, text, target_lang, source_lang, callback, deadline = req
+                    now = time.time()
+                    if now < deadline:
+                        wait_s = deadline - now
+                    else:
+                        wait_s = 0.0
+                        self._pending_req = None
+
+                if wait_s > 0:
+                    time.sleep(min(wait_s, 0.05))
+                    continue
+
+                translated = self.translate_sync(text, target_lang, source_lang=source_lang)
+                with self.lock:
+                    is_latest = (my_seq == self._req_seq)
+                    if is_latest:
+                        self.is_translating = False
+                if is_latest:
+                    try:
+                        callback(text, translated)
+                    except Exception as e:
+                        print(f"[Translator] 回调异常: {e}")
+
     def translate_async(self, text: str, target_lang: str, callback: Callable[[str, str], None], debounce_ms: int = 80, source_lang: str = "zh"):
-        """带防抖与请求序号校验的异步翻译"""
+        """带防抖与请求序号校验的异步翻译（复用单工作线程，长期运行不卡死）"""
         with self.lock:
             self._req_seq += 1
             my_seq = self._req_seq
             self.is_translating = True
-
-        def run():
-            if debounce_ms > 0:
-                time.sleep(debounce_ms / 1000.0)
-            with self.lock:
-                if my_seq != self._req_seq:
-                    return
-            translated = self.translate_sync(text, target_lang, source_lang=source_lang)
-            with self.lock:
-                if my_seq == self._req_seq:
-                    self.is_translating = False
-                    callback(text, translated)
-
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
+            self._pending_req = (my_seq, text, target_lang, source_lang, callback, time.time() + max(0, debounce_ms) / 1000.0)
+            self._worker_event.set()
 
     def test_connection(self, target_lang: str = "en", source_lang: str = "zh") -> Tuple[bool, str]:
         """测试当前所选通道连通性与延迟"""

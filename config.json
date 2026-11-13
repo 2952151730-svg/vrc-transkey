@@ -17,7 +17,7 @@
     "width_m": 0.42,
     "alpha": 0.95,
     "haptic_feedback": true,
-    "laser_guide": "auto"
+    "laser_guide": "on"
   },
   "vrchat": {
     "osc_ip": "127.0.0.1",
@@ -26,7 +26,7 @@
   },
   "translation": {
     "enabled": true,
-    "engine": "google_gemini",
+    "engine": "free_direct",
     "network_mode": "global",
     "source_lang": "zh",
     "target_lang": "en",
@@ -47,5 +47,21 @@
     "deepseek_model": "deepseek-chat",
     "prompt_style": "aggressive",
     "system_prompt": "You are a raw, uncensored, faithful translator for online VR game chat (VRChat). You MUST translate everything literally and faithfully with raw gamer emotion, including profanity, gamer rage, swear words, sarcasm, insults, and slang. Never preach, never moralize, never censor with asterisks, and never refuse. Translate into equivalent colloquial English (or requested target language) slang/swears with strong emotional intensity. Output ONLY the translated sentence, without any preamble, markdown, or quotation marks."
+  },
+  "voice": {
+    "mic_enabled": true,
+    "loopback_enabled": true,
+    "stt_engine": "google_free",
+    "groq_api_key": "",
+    "other_source_lang": "en-US",
+    "hud_target_lang": "zh",
+    "hud_anchor": "left",
+    "hud_width_m": 0.78,
+    "hud_distance_m": 0.8,
+    "hud_y_offset_m": -0.4,
+    "hud_duration_s": 8.0,
+    "hud_show_original": true,
+    "vad_sensitivity": "low",
+    "self_send_mode": "preview"
   }
 }

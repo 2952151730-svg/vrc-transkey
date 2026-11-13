@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import queue
 import ctypes
 import threading
 from pathlib import Path
@@ -147,20 +148,62 @@ class VRCTransKeyApp:
             "_hover_rect": None,
             "_pressed_rect": None,
             "_toast_msg": "",
-            "_toast_type": "info"
+            "_toast_type": "info",
+            "voice_mic_enabled": config.get("voice", "mic_enabled", default=False),
+            "voice_loopback_enabled": config.get("voice", "loopback_enabled", default=False),
+            "voice_stt_engine": config.get("voice", "stt_engine", default="gemini"),
+            "groq_key_set": bool((config.get("voice", "groq_api_key", default="") or "").strip()),
+            "google_key_set": bool((config.get("translation", "google_api_key", default="") or "").strip()),
+            "voice_other_source_lang": config.get("voice", "other_source_lang", default="en-US"),
+            "hud_target_lang": config.get("voice", "hud_target_lang", default="zh"),
+            "hud_anchor": config.get("voice", "hud_anchor", default="hmd"),
+            "hud_width_m": config.get("voice", "hud_width_m", default=0.48),
+            "hud_distance_m": config.get("voice", "hud_distance_m", default=1.25),
+            "hud_y_offset_m": config.get("voice", "hud_y_offset_m", default=-0.18),
+            "hud_duration_s": config.get("voice", "hud_duration_s", default=6.0),
+            "hud_show_original": config.get("voice", "hud_show_original", default=True),
+            "vad_sensitivity": config.get("voice", "vad_sensitivity", default="medium"),
+            "voice_self_send_mode": config.get("voice", "voice_self_send_mode", default="direct") if config.get("voice", "self_send_mode", default="direct") is None else config.get("voice", "self_send_mode", default="direct"),
         }
 
         self.dirty = True
         self.current_clickables = []
         self._press_clear_time = 0.0
         self._toast_clear_time = 0.0
+        self._voice_queue = queue.Queue()
+        self._hud_clear_time = 0.0
+        self._hud_dirty = False
+        self._hud_state = None
+        self._desktop_hud_win = None
+        self._desktop_root = None
+        self._should_exit = False
 
         if not self.desktop_mode:
             from vr_overlay import VROverlayManager
             self.overlay_mgr = VROverlayManager()
             self.state["is_vd_active"] = getattr(self.overlay_mgr, "is_vd_active", False)
+            self._sync_hud_pose()
         else:
             self.overlay_mgr = None
+
+        from speech_engine import SpeechEngine
+        self.speech_engine = SpeechEngine(
+            voice_cfg=config.get("voice", default={}),
+            trans_cfg=config.get("translation", default={}),
+            translator=self.translator,
+            on_self_result=lambda o, t: self._voice_queue.put(("self", o, t)),
+            on_other_result=lambda o, t: self._voice_queue.put(("other", o, t)),
+            on_status=lambda m, lvl: self._voice_queue.put(("status", m, lvl)),
+        )
+        self.speech_engine.sync_workers()
+
+        from tray_icon import TrayIcon
+        self.tray_icon = TrayIcon(
+            tooltip="VRC-TransKey 空间翻译键盘",
+            on_toggle=lambda: self._voice_queue.put(("tray_toggle", None, None)),
+            on_exit=lambda: self._voice_queue.put(("tray_exit", None, None)),
+        )
+        self.tray_icon.start()
 
     def load_phrases(self):
         default_phrases = {
@@ -868,6 +911,134 @@ class VRCTransKeyApp:
         elif action == "send_original" or action == "send_message":
             self._do_send_message(send_type="original")
 
+        elif action == "toggle_voice_mic":
+            nxt = not self.state.get("voice_mic_enabled", False)
+            self.state["voice_mic_enabled"] = nxt
+            config.set(["voice", "mic_enabled"], nxt)
+            self._sync_voice_config()
+            self.state["settings_tip"] = "(成功) 已开启自己语音直发" if nxt else "(提示) 已关闭自己语音直发"
+
+        elif action == "toggle_voice_loopback":
+            nxt = not self.state.get("voice_loopback_enabled", False)
+            self.state["voice_loopback_enabled"] = nxt
+            config.set(["voice", "loopback_enabled"], nxt)
+            self._sync_voice_config()
+            self.state["settings_tip"] = "(成功) 已开启游戏语音 HUD 翻译" if nxt else "(提示) 已关闭游戏语音 HUD 翻译"
+
+        elif action == "set_stt_engine":
+            eid = str(data)
+            self.state["voice_stt_engine"] = eid
+            config.set(["voice", "stt_engine"], eid)
+            self._sync_voice_config()
+            names = {"gemini": "Gemini 多模态", "groq": "Groq Whisper", "google_free": "Google 免Key"}
+            self.state["settings_tip"] = f"(成功) 语音识别引擎已切换为: {names.get(eid, eid)}"
+
+        elif action == "paste_groq_key":
+            clip = get_clipboard_text().strip()
+            if clip and len(clip) > 10:
+                config.set(["voice", "groq_api_key"], clip)
+                self.state["groq_key_set"] = True
+                self._sync_voice_config()
+                self.state["settings_tip"] = "(成功) 已从剪贴板导入 Groq API Key"
+            else:
+                self.state["settings_tip"] = "(提示) 剪贴板中未检测到有效的 Groq API Key"
+
+        elif action == "cycle_other_src_lang":
+            langs = ["en-US", "ja-JP", "ko-KR", "zh-CN", "ru-RU", "fr-FR", "de-DE", "es-ES"]
+            cur = self.state.get("voice_other_source_lang", "en-US")
+            nxt = langs[(langs.index(cur) + 1) % len(langs)] if cur in langs else langs[0]
+            self.state["voice_other_source_lang"] = nxt
+            config.set(["voice", "other_source_lang"], nxt)
+            self._sync_voice_config()
+            self.state["settings_tip"] = f"(成功) 对方语音识别语种已切换为: {nxt}"
+
+        elif action == "set_hud_anchor":
+            aid = str(data)
+            self.state["hud_anchor"] = aid
+            config.set(["voice", "hud_anchor"], aid)
+            self._sync_hud_pose()
+            albls = {"hmd": "头显抬头 HUD", "left": "左手控制器", "right": "右手控制器"}
+            self.state["settings_tip"] = f"(成功) 字幕 HUD 已绑定到: {albls.get(aid, aid)}"
+
+        elif action == "cycle_hud_target_lang":
+            tgts = ["zh", "en", "ja", "ko", "zh-TW"]
+            cur = self.state.get("hud_target_lang", "zh")
+            nxt = tgts[(tgts.index(cur) + 1) % len(tgts)] if cur in tgts else "zh"
+            self.state["hud_target_lang"] = nxt
+            config.set(["voice", "hud_target_lang"], nxt)
+            self._sync_voice_config()
+            self.state["settings_tip"] = f"(成功) HUD 字幕目标语言已切换为: {nxt}"
+
+        elif action == "cycle_hud_duration":
+            durs = [3.0, 5.0, 8.0, 12.0, 20.0]
+            cur = float(self.state.get("hud_duration_s", 6.0))
+            nxt = next((d for d in durs if d > cur + 0.1), durs[0])
+            self.state["hud_duration_s"] = nxt
+            config.set(["voice", "hud_duration_s"], nxt)
+            self.state["settings_tip"] = f"(成功) 单条 HUD 字幕停留时长设为: {int(nxt)} 秒"
+
+        elif action == "cycle_vad_sensitivity":
+            levels = ["low", "medium", "high"]
+            cur = self.state.get("vad_sensitivity", "medium")
+            nxt = levels[(levels.index(cur) + 1) % len(levels)] if cur in levels else "medium"
+            self.state["vad_sensitivity"] = nxt
+            config.set(["voice", "vad_sensitivity"], nxt)
+            self._sync_voice_config()
+            lbls = {"low": "灵敏(安静环境)", "medium": "标准", "high": "抗噪(防背景误触发)"}
+            self.state["settings_tip"] = f"(成功) 收音门限已设为: {lbls.get(nxt, nxt)}"
+
+        elif action == "toggle_self_send_mode":
+            cur = self.state.get("voice_self_send_mode", "direct")
+            nxt = "preview" if cur == "direct" else "direct"
+            self.state["voice_self_send_mode"] = nxt
+            config.set(["voice", "self_send_mode"], nxt)
+            self._sync_voice_config()
+            self.state["settings_tip"] = "(成功) 自己语音: 识别后直接发送" if nxt == "direct" else "(成功) 自己语音: 先填入输入框"
+
+        elif action == "toggle_hud_original":
+            nxt = not self.state.get("hud_show_original", True)
+            self.state["hud_show_original"] = nxt
+            config.set(["voice", "hud_show_original"], nxt)
+            self.state["settings_tip"] = "(成功) HUD 将同时显示原文与译文" if nxt else "(成功) HUD 将仅显示译文"
+
+        elif action == "adjust_hud_width":
+            hw = round(max(0.25, min(0.95, float(self.state.get("hud_width_m", 0.48)) + float(data))), 2)
+            self.state["hud_width_m"] = hw
+            config.set(["voice", "hud_width_m"], hw)
+            self._sync_hud_pose()
+            self.state["settings_tip"] = f"(成功) HUD 宽度调整为: {hw:.2f} 米"
+
+        elif action == "adjust_hud_distance":
+            hd = round(max(0.50, min(2.40, float(self.state.get("hud_distance_m", 1.25)) + float(data))), 2)
+            self.state["hud_distance_m"] = hd
+            config.set(["voice", "hud_distance_m"], hd)
+            self._sync_hud_pose()
+            self.state["settings_tip"] = f"(成功) HUD 远近调整为: {hd:.2f} 米"
+
+        elif action == "adjust_hud_y":
+            hy = round(max(-0.40, min(0.25, float(self.state.get("hud_y_offset_m", -0.18)) + float(data))), 2)
+            self.state["hud_y_offset_m"] = hy
+            config.set(["voice", "hud_y_offset_m"], hy)
+            self._sync_hud_pose()
+            self.state["settings_tip"] = f"(成功) HUD 上下偏移调整为: {hy:+.2f} 米"
+
+        elif action == "test_voice_hud":
+            self._show_hud_subtitle("other", "Hey! Nice avatar, wanna hang out?", "嘿！你的模型真好看，要一起玩吗？")
+            self.state["settings_tip"] = "(成功) 已推送测试字幕到 HUD（可实时调节大小与远近）"
+
+        elif action == "reset_hud_pose":
+            self.state["hud_anchor"] = "hmd"
+            self.state["hud_width_m"] = 0.48
+            self.state["hud_distance_m"] = 1.25
+            self.state["hud_y_offset_m"] = -0.18
+            config.set(["voice", "hud_anchor"], "hmd")
+            config.set(["voice", "hud_width_m"], 0.48)
+            config.set(["voice", "hud_distance_m"], 1.25)
+            config.set(["voice", "hud_y_offset_m"], -0.18)
+            self._sync_hud_pose()
+            self.state["settings_tip"] = "(成功) HUD 已恢复默认大小与位置 (头显 0.48m / 1.25m)"
+
+        self.state["google_key_set"] = bool((config.get("translation", "google_api_key", default="") or "").strip())
         self.dirty = True
 
     def show_toast(self, msg: str, toast_type: str = "info", duration: float = 1.6):
@@ -875,6 +1046,92 @@ class VRCTransKeyApp:
         self.state["_toast_type"] = toast_type
         self._toast_clear_time = time.time() + duration
         self.dirty = True
+
+    def _sync_voice_config(self):
+        if hasattr(self, "speech_engine") and self.speech_engine:
+            self.speech_engine.update_config(
+                config.get("voice", default={}),
+                config.get("translation", default={}),
+            )
+
+    def _sync_hud_pose(self):
+        if self.overlay_mgr:
+            self.overlay_mgr.set_hud_pose(
+                anchor=self.state.get("hud_anchor", "hmd"),
+                width_m=float(self.state.get("hud_width_m", 0.48)),
+                distance_m=float(self.state.get("hud_distance_m", 1.25)),
+                y_offset_m=float(self.state.get("hud_y_offset_m", -0.18)),
+            )
+
+    def _show_hud_subtitle(self, speaker: str, original: str, translated: str):
+        dur = float(self.state.get("hud_duration_s", 6.0))
+        self._hud_state = {
+            "speaker": speaker,
+            "original": original,
+            "translated": translated,
+            "show_original": bool(self.state.get("hud_show_original", True)),
+        }
+        self._hud_clear_time = time.time() + dur
+        self._hud_dirty = True
+
+    def _drain_voice_queue(self):
+        while not self._voice_queue.empty():
+            try:
+                kind, a, b = self._voice_queue.get_nowait()
+            except queue.Empty:
+                break
+            if kind == "self":
+                orig, trans = a, b
+                if self.state.get("voice_self_send_mode", "direct") == "direct":
+                    send_mode = self.state.get("send_mode", "translated_only")
+                    if send_mode == "bilingual" and orig and trans and orig != trans:
+                        fmt = config.get("translation", "bilingual_format", default="{original} ({translated})")
+                        msg = fmt.format(original=orig, translated=trans)
+                    else:
+                        msg = trans or orig
+                    self.osc.send_chatbox(msg, send_immediately=True)
+                    self.show_toast(f"语音已发送: {msg}", "success", 2.0)
+                else:
+                    self.state["committed_text"] = orig
+                    self.state["translated_text"] = trans
+                    self.dirty = True
+            elif kind == "other":
+                self._show_hud_subtitle("other", a, b)
+            elif kind == "status":
+                self.show_toast(a, b, 2.5)
+            elif kind == "tray_toggle":
+                if self.overlay_mgr:
+                    self.overlay_mgr.toggle()
+                elif self._desktop_root is not None:
+                    try:
+                        if self._desktop_root.state() == "withdrawn":
+                            self._desktop_root.deiconify()
+                            self._desktop_root.lift()
+                        else:
+                            self._desktop_root.withdraw()
+                    except Exception:
+                        pass
+            elif kind == "tray_exit":
+                self._should_exit = True
+                if self._desktop_root is not None:
+                    try:
+                        self._desktop_root.quit()
+                    except Exception:
+                        pass
+
+    def _tick_hud_timer(self):
+        if self._hud_dirty and self._hud_state and self.overlay_mgr:
+            from PIL import Image
+            hud_img = self.renderer.render_hud(self._hud_state)
+            self.overlay_mgr.upload_hud_texture(hud_img.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes(), 800, 180)
+            self._sync_hud_pose()
+            self.overlay_mgr.show_hud()
+            self._hud_dirty = False
+        if self._hud_clear_time > 0 and time.time() >= self._hud_clear_time:
+            self._hud_clear_time = 0.0
+            self._hud_state = None
+            if self.overlay_mgr:
+                self.overlay_mgr.hide_hud()
 
     def _find_hit_rect(self, px: int, py: int):
         for rect, action, _ in self.current_clickables:
@@ -989,15 +1246,17 @@ class VRCTransKeyApp:
         print("=" * 58 + "\n")
 
         # 启动时先预渲染并上传初始贴图
+        from PIL import Image
         img, clickables = self.renderer.render(self.state)
         self.current_clickables = clickables
-        self.overlay_mgr.upload_texture(img.tobytes(), WIDTH, HEIGHT)
+        self.overlay_mgr.upload_texture(img.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes(), WIDTH, HEIGHT)
         self.dirty = False
 
         self.overlay_mgr.show()
         last_is_visible = True
+        last_hover_redraw_ts = 0.0
 
-        while True:
+        while not self._should_exit:
             ui_events = self.overlay_mgr.step_vr_interaction()
             for ev_type, px, py, ctrl_idx in ui_events:
                 if ev_type == "click":
@@ -1005,14 +1264,18 @@ class VRCTransKeyApp:
                 elif ev_type == "drag_hold":
                     self.process_mouse_click(px, py, ctrl_idx, is_drag_hold=True)
 
-            # VR 激光悬停高亮检测 (仅当悬停热区变化时才触发重绘，零多余 GPU 上传)
+            # VR 激光悬停高亮检测 (双缓冲零闪烁 + 35ms 节流防边缘抖动)
             h_xy = getattr(self.overlay_mgr, "current_hover_xy", None)
             new_hover = self._find_hit_rect(h_xy[0], h_xy[1]) if (h_xy and self.overlay_mgr.is_visible) else None
-            if new_hover != self.state.get("_hover_rect"):
+            now_ts = time.time()
+            if new_hover != self.state.get("_hover_rect") and (now_ts - last_hover_redraw_ts >= 0.035):
                 self.state["_hover_rect"] = new_hover
+                last_hover_redraw_ts = now_ts
                 self.dirty = True
 
             self._tick_visual_timers()
+            self._drain_voice_queue()
+            self._tick_hud_timer()
 
             cur_vis = self.overlay_mgr.is_visible
             if cur_vis and not last_is_visible:
@@ -1022,17 +1285,27 @@ class VRCTransKeyApp:
             if self.dirty and self.overlay_mgr.is_visible:
                 img, clickables = self.renderer.render(self.state)
                 self.current_clickables = clickables
-                self.overlay_mgr.upload_texture(img.tobytes(), WIDTH, HEIGHT)
+                self.overlay_mgr.upload_texture(img.transpose(Image.Transpose.FLIP_TOP_BOTTOM).tobytes(), WIDTH, HEIGHT)
                 self.dirty = False
 
             time.sleep(0.011)
+
+        self.speech_engine.stop_all()
+        self.tray_icon.stop()
 
     def run_desktop_preview(self):
         import tkinter as tk
         from PIL import ImageTk
 
         root = tk.Tk()
+        self._desktop_root = root
         root.title("VRC-TransKey 灵动翻译键盘 [桌面预览 / 物理键盘直打模式]")
+        try:
+            ico_path = BASE_DIR / "favicon.ico"
+            if ico_path.exists():
+                root.iconbitmap(str(ico_path))
+        except Exception:
+            pass
         root.geometry(f"{WIDTH}x{HEIGHT}")
         root.resizable(False, False)
         root.configure(bg="#0e1118")
@@ -1131,8 +1404,32 @@ class VRCTransKeyApp:
         root.bind("<Key>", on_key_press)
         refresh_canvas()
 
+        hud_photo_ref = [None]
+        hud_win = tk.Toplevel(root)
+        hud_win.withdraw()
+        hud_win.overrideredirect(True)
+        hud_win.attributes("-topmost", True)
+        hud_win.configure(bg="#0a101e")
+        hud_label = tk.Label(hud_win, bg="#0a101e", bd=0)
+        hud_label.pack()
+
         def periodic_check():
             self._tick_visual_timers()
+            self._drain_voice_queue()
+            if self._hud_dirty and self._hud_state:
+                hud_img = self.renderer.render_hud(self._hud_state)
+                hp = ImageTk.PhotoImage(hud_img)
+                hud_photo_ref[0] = hp
+                hud_label.config(image=hp)
+                rx = root.winfo_x() + (WIDTH - 800) // 2
+                ry = max(10, root.winfo_y() - 190)
+                hud_win.geometry(f"800x180+{rx}+{ry}")
+                hud_win.deiconify()
+                self._hud_dirty = False
+            if self._hud_clear_time > 0 and time.time() >= self._hud_clear_time:
+                self._hud_clear_time = 0.0
+                self._hud_state = None
+                hud_win.withdraw()
             if self.dirty:
                 refresh_canvas()
             root.after(25, periodic_check)
@@ -1140,6 +1437,8 @@ class VRCTransKeyApp:
         root.after(30, periodic_check)
         print("[Desktop] 桌面测试窗口已打开！支持鼠标点击虚拟按键，也支持直接使用电脑物理键盘打字 (Enter发译文 / Shift+Enter发中文)！")
         root.mainloop()
+        self.speech_engine.stop_all()
+        self.tray_icon.stop()
 
 
 if __name__ == "__main__":

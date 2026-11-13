@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VRC-TransKey v1.3.0 — VRChat Spatial Cyber-Glass 中文拼音键盘与实时翻译终端</title>
-  <meta name="description" content="专为 VRChat 打造的 Spatial Cyber-Glass 空间悬浮中文拼音输入法与实时多语翻译终端。内置 8,757 规范单字 + 10万核心高频词库，0.6 秒冷启动，支持 Google、DeepSeek、Gemini、Ollama 与 OSC 直连。" />
+  <title>VRC-TransKey v1.3.1 — VRChat Spatial Cyber-Glass 中文拼音键盘、语音转文字与实时翻译终端</title>
+  <meta name="description" content="专为 VRChat 打造的 Spatial Cyber-Glass 空间悬浮中文拼音输入法、语音转文字直发与实时多语翻译 HUD 终端。内置 8,757 规范单字 + 10万核心高频词库，0.6 秒冷启动，支持 Gemini、Groq Whisper、DeepSeek 与 OSC 直连。" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png" />
   <style>
@@ -504,11 +504,11 @@
       <a href="#" class="brand">
         <img src="logo.png" alt="VRC-TransKey" />
         <span>VRC-TransKey</span>
-        <span class="brand-tag">v1.3.0</span>
+        <span class="brand-tag">v1.3.1</span>
       </a>
       <nav class="nav-links">
         <a href="#features">核心特性</a>
-        <a href="#architecture">v1.3.0 升级</a>
+        <a href="#architecture">v1.3.1 升级</a>
         <a href="#quickstart">快速上手</a>
         <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" rel="noopener">GitHub</a>
         <a href="https://github.com/2952151730-svg/vrc-transkey/releases" target="_blank" rel="noopener" class="nav-cta">下载发行版</a>
@@ -520,19 +520,19 @@
     <section class="hero">
       <div class="pill">
         <span class="pill-dot"></span>
-        v1.3.0 现已发布 · Spatial Cyber-Glass UI · 10 万核心精简词库
+        v1.3.1 现已发布 · 语音转文字直发 · 游戏语音 HUD 翻译 · 10 万核心精简词库
       </div>
       <h1>
         不用摘下头显，
         <span class="gradient-text">中文输入与跨语聊天一步到位</span>
       </h1>
       <p class="hero-sub">
-        专为 SteamVR 与 Virtual Desktop 打造的轻量级空间悬浮拼音键盘与实时多语翻译终端。
-        全新 3D 玻璃拟态视觉、悬停按压触感反馈、8,757 个规范单字与 10 万核心高频词库，OSC 直达 Chatbox。
+        专为 SteamVR 与 Virtual Desktop 打造的轻量级空间悬浮拼音键盘、语音转文字与实时多语翻译终端。
+        支持麦克风语音转文字直发 Chatbox、游戏内语音实时翻译 HUD 抬头显示，以及 8,757 规范单字 + 10 万核心高频词库。
       </p>
       <div class="hero-actions">
         <a href="https://github.com/2952151730-svg/vrc-transkey/releases" target="_blank" rel="noopener" class="btn btn-primary">
-          下载 VRC-TransKey v1.3.0
+          下载 VRC-TransKey v1.3.1
         </a>
         <a href="https://github.com/2952151730-svg/vrc-transkey" target="_blank" rel="noopener" class="btn btn-secondary">
           查看源码与文档
@@ -605,14 +605,14 @@
       </div>
       <div class="grid-3">
         <div class="card">
-          <div class="card-icon">🪟</div>
-          <h3>Spatial Cyber-Glass 立体键帽</h3>
-          <p>全新设计的深空玻璃拟态键盘与 3D 键帽层次，配合射线悬停发光、按压微移反馈与顶部 Toast 状态提示，操作更跟手。</p>
+          <div class="card-icon">🎙️</div>
+          <h3>语音转文字直发 & 游戏 HUD</h3>
+          <p>支持麦克风语音转文字并翻译直发 Chatbox，同时通过 WASAPI 捕获游戏内队友语音，实时翻译成中文悬浮显示在头显 HUD 或左/右手上。</p>
         </div>
         <div class="card">
           <div class="card-icon">🎛️</div>
-          <h3>双栏模块化控制中心</h3>
-          <p>将设置面板重整为「翻译引擎」「语言与输入」「空间与引导」三大页签，引擎切换、送出模式与空间引导一目了然。</p>
+          <h3>四栏模块化控制中心</h3>
+          <p>控制中心涵盖「翻译引擎」「语言与输入」「空间与引导」「语音与HUD」四大页签，大小、远近、高低、停留秒数与门限均可实时调节。</p>
         </div>
         <div class="card">
           <div class="card-icon">📚</div>
@@ -639,21 +639,21 @@
 
     <section id="architecture">
       <div class="section-head">
-        <h2>v1.3.0 重点打磨与性能优化</h2>
-        <p>不仅重新设计了视觉与交互，也对词库体积与内存占用做了深度瘦身。</p>
+        <h2>v1.3.1 重点打磨与稳定性升级</h2>
+        <p>不仅新增语音转文字与空间 HUD，也对 OpenGL 渲染与长时翻译稳定性做了彻底修复。</p>
       </div>
       <div class="grid-3">
         <div class="card">
-          <h3>内存减负</h3>
-          <p>裁剪长尾生僻词并限制低频混拼索引，桌面预览专用内存降至 ~130 MB（工作集 ~160 MB），长时间常驻 VR 后台依然轻盈。</p>
+          <h3>双缓冲零闪烁 GPU 渲染</h3>
+          <p>采用 OpenGL 乒乓双缓冲纹理与 <code>glFinish()</code> 同步，解决悬停移动闪烁与方向翻转；自带右下角系统托盘图标，一键开关或退出。</p>
         </div>
         <div class="card">
-          <h3>8 栏自适应候选框</h3>
-          <p>全宽 8 候选词排列配合翻页箭头与内置颜文字 / Emoji 面板，单字与长词组在头显高分屏中清晰易点。</p>
+          <h3>长时翻译稳定不卡顿</h3>
+          <p>重构为单工作线程防抖翻译队列与上限缓存，避免高并发连接堆积；词库精简后专用内存维持 ~130 MB（工作集 ~160 MB）。</p>
         </div>
         <div class="card">
-          <h3>零闪烁 GPU 纹理同步</h3>
-          <p>通过 PyQt6 离屏渲染与 OpenGL 纹理直接更新 OpenVR Overlay，避免传统截屏式传输造成的卡顿与闪烁。</p>
+          <h3>多语音识别引擎自由切换</h3>
+          <p>可选 Gemini 多模态一步听写意译、Groq Whisper 高速免费额度，或 Google 免Key 单语听写，兼顾零门槛与高精度。</p>
         </div>
       </div>
     </section>

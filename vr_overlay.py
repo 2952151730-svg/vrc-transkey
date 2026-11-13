@@ -62,6 +62,8 @@ class GLTextureContext:
         self.width = width
         self.height = height
         self.tex_id = 0
+        self.tex_ids = [0, 0]
+        self.active_idx = 0
         self.hglrc = None
         self.hdc = None
         self.hwnd = None
@@ -101,9 +103,11 @@ class GLTextureContext:
             self.hglrc = gl.wglCreateContext(self.hdc)
             gl.wglMakeCurrent(self.hdc, self.hglrc)
 
-            tex_buf = (ctypes.c_uint * 1)()
-            gl.glGenTextures(1, tex_buf)
-            self.tex_id = int(tex_buf[0])
+            tex_buf = (ctypes.c_uint * 2)()
+            gl.glGenTextures(2, tex_buf)
+            self.tex_ids = [int(tex_buf[0]), int(tex_buf[1])]
+            self.active_idx = 0
+            self.tex_id = self.tex_ids[0]
 
             GL_TEXTURE_2D = 0x0DE1
             GL_TEXTURE_MIN_FILTER = 0x2801
@@ -115,35 +119,42 @@ class GLTextureContext:
             GL_RGBA = 0x1908
             GL_UNSIGNED_BYTE = 0x1401
 
-            gl.glBindTexture(GL_TEXTURE_2D, self.tex_id)
-            gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.width, self.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
-            gl.glFlush()
+            for tid in self.tex_ids:
+                gl.glBindTexture(GL_TEXTURE_2D, tid)
+                gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+                gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+                gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+                gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+                gl.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.width, self.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+            gl.glFinish()
 
             self.is_valid = True
-            print(f"[VROverlay] GPU 硬件加速原生显存渲染就绪! Texture ID: {self.tex_id}")
+            print(f"[VROverlay] GPU 双缓冲纹理渲染就绪! Textures: {self.tex_ids}")
         except Exception as e:
             print(f"[VROverlay] GPU 加速初始化提示: {e}，将启用安全直传通道")
             self.is_valid = False
 
-    def update_texture(self, raw_bytes: bytes, width: int, height: int) -> bool:
+    def update_texture(self, raw_bytes: bytes, width: int, height: int) -> int:
         if not self.is_valid:
-            return False
+            return 0
         try:
             gl = ctypes.windll.opengl32
+            if gl.wglGetCurrentContext() != self.hglrc:
+                gl.wglMakeCurrent(self.hdc, self.hglrc)
             GL_TEXTURE_2D = 0x0DE1
             GL_RGBA = 0x1908
             GL_UNSIGNED_BYTE = 0x1401
-            gl.glBindTexture(GL_TEXTURE_2D, self.tex_id)
+            next_idx = 1 - self.active_idx
+            target_tid = self.tex_ids[next_idx]
+            gl.glBindTexture(GL_TEXTURE_2D, target_tid)
             gl.glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, raw_bytes)
-            gl.glFlush()
-            return True
+            gl.glFinish()
+            self.active_idx = next_idx
+            self.tex_id = target_tid
+            return target_tid
         except Exception as e:
             print(f"[VROverlay] GPU 显存纹理写入警告: {e}")
-            return False
+            return 0
 
 
 class VROverlayManager:
@@ -212,6 +223,15 @@ class VROverlayManager:
         self.current_hover_xy: Optional[Tuple[int, int]] = None
         self.is_trigger_down_on_slider = False
 
+        # 抬头字幕 HUD Overlay 状态
+        self.hud_handle = None
+        self.hud_gl_ctx = None
+        self.hud_ovr_texture = None
+        self.hud_visible = False
+        self._vr_apps = None
+        self._last_scene_check_ts = 0.0
+        self._cached_in_scene = False
+
         self.init_openvr()
 
     def init_openvr(self):
@@ -246,8 +266,8 @@ class VROverlayManager:
                     bounds = openvr.VRTextureBounds_t()
                     bounds.uMin = 0.0
                     bounds.uMax = 1.0
-                    bounds.vMin = 1.0
-                    bounds.vMax = 0.0
+                    bounds.vMin = 0.0
+                    bounds.vMax = 1.0
                     self.vr_overlay.setOverlayTextureBounds(self.handle, bounds)
             except Exception as e:
                 print(f"[VROverlay] GPU 纹理上下文绑定提示: {e}")
@@ -285,6 +305,28 @@ class VROverlayManager:
             except Exception as e:
                 print(f"[VROverlay] 准星 Overlay 初始化失败: {e}")
                 self.cursor_handle = None
+
+            # 4. 创建语音翻译 HUD 抬头显示 Overlay
+            try:
+                self.hud_handle = self.vr_overlay.createOverlay(self.key + ".hud", "VRC TransKey Voice HUD")
+                self.vr_overlay.setOverlayWidthInMeters(self.hud_handle, 0.48)
+                self.vr_overlay.setOverlayAlpha(self.hud_handle, 0.95)
+                self.hud_gl_ctx = GLTextureContext(800, 180)
+                if self.hud_gl_ctx.is_valid:
+                    self.hud_ovr_texture = openvr.Texture_t()
+                    self.hud_ovr_texture.handle = ctypes.c_void_p(self.hud_gl_ctx.tex_id)
+                    self.hud_ovr_texture.eType = openvr.TextureType_OpenGL
+                    self.hud_ovr_texture.eColorSpace = openvr.ColorSpace_Auto
+                    h_bounds = openvr.VRTextureBounds_t()
+                    h_bounds.uMin = 0.0
+                    h_bounds.uMax = 1.0
+                    h_bounds.vMin = 0.0
+                    h_bounds.vMax = 1.0
+                    self.vr_overlay.setOverlayTextureBounds(self.hud_handle, h_bounds)
+                self.vr_overlay.hideOverlay(self.hud_handle)
+            except Exception as e:
+                print(f"[VROverlay] HUD Overlay 初始化失败: {e}")
+                self.hud_handle = None
 
             print(f"[VROverlay] OpenVR Overlay 初始化成功! Handle: {self.handle}, 初始宽度: {self.width_m:.2f}m")
         except Exception as e:
@@ -707,14 +749,29 @@ class VROverlayManager:
         except Exception:
             return False
 
+    def _is_in_vr_scene(self) -> bool:
+        """检测当前是否处于 VRChat 等 VR 游戏场景中（且未打开 SteamVR 系统面板）"""
+        now = time.time()
+        if now - self._last_scene_check_ts >= 0.5:
+            self._last_scene_check_ts = now
+            try:
+                if self._vr_apps is None:
+                    self._vr_apps = openvr.VRApplications()
+                scene_pid = self._vr_apps.getCurrentSceneProcessId()
+                dash_open = bool(self.vr_overlay and self.vr_overlay.isDashboardVisible())
+                self._cached_in_scene = (scene_pid > 0) and (not dash_open)
+            except Exception:
+                self._cached_in_scene = True
+        return self._cached_in_scene
+
     def _should_render_laser_guide(self) -> bool:
         """根据当前配置模式判断是否渲染 3D 激光引导线与准星"""
         if self.laser_mode == "off":
             return False
         if self.laser_mode == "on":
             return True
-        # "auto" 模式：仅在 VD 串流下渲染；原生 SteamVR 下隐藏防止手柄出现两根重合激光线
-        return bool(self.is_vd_active)
+        # "auto" 模式：仅在 VD 串流且已进入 VRChat 等场景（非 SteamVR 外面大厅/面板）时渲染，避免双线抢控制权
+        return bool(self.is_vd_active) and self._is_in_vr_scene()
 
     def set_laser_mode(self, mode: str):
         self.laser_mode = mode
@@ -1002,7 +1059,9 @@ class VROverlayManager:
             return
         if self.gl_ctx and self.gl_ctx.is_valid and self.ovr_texture:
             try:
-                if self.gl_ctx.update_texture(img_bytes, width, height):
+                tid = self.gl_ctx.update_texture(img_bytes, width, height)
+                if tid:
+                    self.ovr_texture.handle = ctypes.c_void_p(tid)
                     self.vr_overlay.setOverlayTexture(self.handle, self.ovr_texture)
                     return
             except Exception as e:
@@ -1015,3 +1074,79 @@ class VROverlayManager:
             self.vr_overlay.setOverlayRaw(self.handle, c_buf, width, height, 4)
         except Exception as e:
             print(f"[VROverlay] 贴图上传失败 ({type(e).__name__}): {repr(e)}")
+
+    def set_hud_pose(self, anchor: str = "hmd", width_m: float = 0.48, distance_m: float = 1.25, y_offset_m: float = -0.18):
+        """设置语音翻译 HUD 挂载设备（头显 HMD / 左手 / 右手）及大小远近"""
+        if not self.hud_handle or not self.vr_overlay or not self.vr_system:
+            return
+        try:
+            target_idx = openvr.k_unTrackedDeviceIndex_Hmd
+            eff_width = max(0.20, min(1.0, float(width_m)))
+            mat = openvr.HmdMatrix34_t()
+
+            if anchor in ("left", "right"):
+                role = (
+                    openvr.TrackedControllerRole_LeftHand
+                    if anchor == "left"
+                    else openvr.TrackedControllerRole_RightHand
+                )
+                ctrl_idx = self.vr_system.getTrackedDeviceIndexForControllerRole(role)
+                if ctrl_idx != openvr.k_unTrackedDeviceIndexInvalid:
+                    target_idx = ctrl_idx
+                    eff_width = max(0.14, min(0.55, eff_width * 0.55))
+                    pitch = math.radians(-28.0)
+                    cp, sp = math.cos(pitch), math.sin(pitch)
+                    dist_hand = 0.08 + max(0.0, float(distance_m) - 0.5) * 0.16
+                    y_hand = 0.12 + float(y_offset_m) * 0.25
+                    mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3] = 1.0, 0.0, 0.0, 0.0
+                    mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3] = 0.0, cp, -sp, y_hand
+                    mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3] = 0.0, sp, cp, -dist_hand
+                    self.vr_overlay.setOverlayWidthInMeters(self.hud_handle, eff_width)
+                    self.vr_overlay.setOverlayTransformTrackedDeviceRelative(self.hud_handle, target_idx, mat)
+                    return
+
+            # 默认头显 HUD 随动
+            pitch = math.radians(max(-15.0, min(15.0, float(y_offset_m) * -22.0)))
+            cp, sp = math.cos(pitch), math.sin(pitch)
+            mat.m[0][0], mat.m[0][1], mat.m[0][2], mat.m[0][3] = 1.0, 0.0, 0.0, 0.0
+            mat.m[1][0], mat.m[1][1], mat.m[1][2], mat.m[1][3] = 0.0, cp, -sp, float(y_offset_m)
+            mat.m[2][0], mat.m[2][1], mat.m[2][2], mat.m[2][3] = 0.0, sp, cp, -max(0.45, min(2.5, float(distance_m)))
+            self.vr_overlay.setOverlayWidthInMeters(self.hud_handle, eff_width)
+            self.vr_overlay.setOverlayTransformTrackedDeviceRelative(self.hud_handle, target_idx, mat)
+        except Exception as e:
+            print(f"[VROverlay] 设置 HUD 位姿失败: {e}")
+
+    def show_hud(self):
+        if self.hud_handle and self.vr_overlay and not self.hud_visible:
+            try:
+                self.vr_overlay.showOverlay(self.hud_handle)
+                self.hud_visible = True
+            except Exception:
+                pass
+
+    def hide_hud(self):
+        if self.hud_handle and self.vr_overlay and self.hud_visible:
+            try:
+                self.vr_overlay.hideOverlay(self.hud_handle)
+                self.hud_visible = False
+            except Exception:
+                pass
+
+    def upload_hud_texture(self, img_bytes: bytes, width: int = 800, height: int = 180):
+        if not self.hud_handle or not self.vr_overlay:
+            return
+        if self.hud_gl_ctx and self.hud_gl_ctx.is_valid and self.hud_ovr_texture:
+            try:
+                tid = self.hud_gl_ctx.update_texture(img_bytes, width, height)
+                if tid:
+                    self.hud_ovr_texture.handle = ctypes.c_void_p(tid)
+                    self.vr_overlay.setOverlayTexture(self.hud_handle, self.hud_ovr_texture)
+                    return
+            except Exception:
+                pass
+        try:
+            c_buf = (ctypes.c_char * len(img_bytes)).from_buffer_copy(img_bytes)
+            self._hud_c_buf = c_buf
+            self.vr_overlay.setOverlayRaw(self.hud_handle, c_buf, width, height, 4)
+        except Exception as e:
+            print(f"[VROverlay] HUD 贴图上传失败: {e}")
