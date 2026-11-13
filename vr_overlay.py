@@ -156,6 +156,32 @@ class GLTextureContext:
             print(f"[VROverlay] GPU 显存纹理写入警告: {e}")
             return 0
 
+    def destroy(self):
+        """释放 OpenGL 上下文、纹理与隐藏窗口句柄"""
+        if not self.is_valid:
+            return
+        self.is_valid = False
+        try:
+            gl = ctypes.windll.opengl32
+            user32 = ctypes.windll.user32
+            if gl.wglGetCurrentContext() == self.hglrc:
+                gl.wglMakeCurrent(0, 0)
+            valid_tids = [t for t in self.tex_ids if t]
+            if valid_tids:
+                arr = (ctypes.c_uint * len(valid_tids))(*valid_tids)
+                gl.glDeleteTextures(len(valid_tids), arr)
+            if self.hglrc:
+                gl.wglDeleteContext(self.hglrc)
+                self.hglrc = None
+            if self.hwnd and self.hdc:
+                user32.ReleaseDC(self.hwnd, self.hdc)
+                self.hdc = None
+            if self.hwnd:
+                user32.DestroyWindow(self.hwnd)
+                self.hwnd = None
+        except Exception:
+            pass
+
 
 class VROverlayManager:
     def __init__(self, key: str = "vrc.lightweight.transkey", name: str = "VRC TransKey"):
@@ -1150,3 +1176,31 @@ class VROverlayManager:
             self.vr_overlay.setOverlayRaw(self.hud_handle, c_buf, width, height, 4)
         except Exception as e:
             print(f"[VROverlay] HUD 贴图上传失败: {e}")
+
+    def shutdown(self):
+        """主动销毁所有 Overlay、OpenGL 上下文并关闭 OpenVR，释放 DLL 锁"""
+        try:
+            if self.vr_overlay:
+                for h in (self.handle, self.laser_handle, self.cursor_handle, self.hud_handle):
+                    if h:
+                        try:
+                            self.vr_overlay.hideOverlay(h)
+                            self.vr_overlay.destroyOverlay(h)
+                        except Exception:
+                            pass
+            self.handle = None
+            self.laser_handle = None
+            self.cursor_handle = None
+            self.hud_handle = None
+            if self.gl_ctx:
+                self.gl_ctx.destroy()
+                self.gl_ctx = None
+            if self.hud_gl_ctx:
+                self.hud_gl_ctx.destroy()
+                self.hud_gl_ctx = None
+            if self.vr_system is not None:
+                openvr.shutdown()
+                self.vr_system = None
+                self.vr_overlay = None
+        except Exception as e:
+            print(f"[VROverlay] 退出清理提示: {e}")

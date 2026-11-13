@@ -122,6 +122,8 @@ class TrayIcon:
                 ctypes.windll.user32.PostMessageW(self._hwnd, WM_DESTROY, 0, 0)
             except Exception:
                 pass
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=0.5)
 
     def _run(self):
         user32 = ctypes.windll.user32

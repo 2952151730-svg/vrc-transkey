@@ -1232,9 +1232,18 @@ class VRCTransKeyApp:
             print("  >> 【启动_桌面预览模式.bat】 <<")
             print("!" * 54 + "\n")
             try:
-                input("请按回车键退出...")
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    "未检测到运行中的 SteamVR！\n\n请先启动 SteamVR 并戴好头显，然后再打开 VRC-TransKey.exe。\n若只想在电脑桌面体验界面与打字，请运行【启动_桌面预览模式.bat】。",
+                    "VRC-TransKey 提示",
+                    0x40,
+                )
             except Exception:
                 pass
+            self.speech_engine.stop_all()
+            self.tray_icon.stop()
+            if self.overlay_mgr:
+                self.overlay_mgr.shutdown()
             return
 
         print("\n" + "=" * 58)
@@ -1292,6 +1301,8 @@ class VRCTransKeyApp:
 
         self.speech_engine.stop_all()
         self.tray_icon.stop()
+        if self.overlay_mgr:
+            self.overlay_mgr.shutdown()
 
     def run_desktop_preview(self):
         import tkinter as tk
@@ -1439,6 +1450,8 @@ class VRCTransKeyApp:
         root.mainloop()
         self.speech_engine.stop_all()
         self.tray_icon.stop()
+        if self.overlay_mgr:
+            self.overlay_mgr.shutdown()
 
 
 if __name__ == "__main__":
